@@ -63,7 +63,12 @@ ColumnLayout {
                 var ew = usage.extraRateWindows[i]
                 var w = ew ? Catalog.usableWindow(ew.window) : null
                 if (w)
-                    out.push({ title: ew.title || "Extra", win: w, pace: null })
+                    out.push({
+                        title: ew.title || "Extra",
+                        win: w,
+                        minutes: Catalog.effectiveWindowMinutes(w, providerId, "extra"),
+                        pace: null
+                    })
             }
         }
         return out
