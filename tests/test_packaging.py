@@ -10,7 +10,7 @@ import zipfile
 
 REPOSITORY = pathlib.Path(__file__).resolve().parents[1]
 PLUGIN_ID = "com.github.psimaker.codexbar"
-VERSION = "0.3.1"
+VERSION = "0.4.0"
 ARTIFACT_NAME = f"{PLUGIN_ID}-{VERSION}.plasmoid"
 
 
@@ -75,9 +75,13 @@ class PackagingTests(unittest.TestCase):
         self.assertFalse(any(name.startswith("codexbar-plasmoid/") for name in names))
 
     def test_tag_package_contains_exactly_tag_files(self):
-        self.build("v0.3.1")
+        # A published tag whose metadata version differs from the current one,
+        # so the artifact name must follow the packaged ref, not the worktree.
+        tag = "v0.3.1"
+        self.build(tag)
+        tagged_artifact = self.repo / "dist" / f"{PLUGIN_ID}-{tag[1:]}.plasmoid"
         tracked = self.run_command(
-            "git", "ls-tree", "-r", "--name-only", "v0.3.1"
+            "git", "ls-tree", "-r", "--name-only", tag
         ).stdout.splitlines()
         expected = sorted(
             name
@@ -85,10 +89,10 @@ class PackagingTests(unittest.TestCase):
             if name in {"metadata.json", "LICENSE"} or name.startswith("contents/")
         )
 
-        with zipfile.ZipFile(self.artifact) as archive:
+        with zipfile.ZipFile(tagged_artifact) as archive:
             self.assertEqual(sorted(archive.namelist()), expected)
             for name in expected:
-                tagged = self.run_command("git", "show", f"v0.3.1:{name}").stdout
+                tagged = self.run_command("git", "show", f"{tag}:{name}").stdout
                 self.assertEqual(archive.read(name), tagged.encode())
 
     def test_checksum_matches_archive(self):
@@ -123,16 +127,16 @@ class PackagingTests(unittest.TestCase):
         mismatch = self.run_command(
             "python3",
             "scripts/validate-release-version.py",
-            "v0.3.2",
+            "v0.4.1",
             check=False,
         )
         self.assertNotEqual(mismatch.returncode, 0)
         self.assertIn("does not match release tag", mismatch.stderr)
 
         match = self.run_command(
-            "python3", "scripts/validate-release-version.py", "v0.3.1"
+            "python3", "scripts/validate-release-version.py", "v0.4.0"
         )
-        self.assertIn("matches metadata version 0.3.1", match.stdout)
+        self.assertIn("matches metadata version 0.4.0", match.stdout)
 
     def test_release_tag_must_be_semver(self):
         result = self.run_command(
