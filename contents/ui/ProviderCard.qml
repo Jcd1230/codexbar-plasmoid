@@ -355,8 +355,8 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: !card.extrasOnly
                  && (card.creditsRemaining() !== null
-                     || (card.usage && card.usage.codexResetCredits
-                         && card.usage.codexResetCredits.availableCount > 0))
+                     || !!(card.usage && card.usage.codexResetCredits
+                           && card.usage.codexResetCredits.availableCount > 0))
         spacing: Math.round(Kirigami.Units.smallSpacing * 0.8)
 
         Rectangle {
@@ -380,8 +380,8 @@ ColumnLayout {
         }
 
         PlasmaComponents3.Label {
-            visible: card.usage && card.usage.codexResetCredits
-                     && card.usage.codexResetCredits.availableCount > 0
+            visible: !!(card.usage && card.usage.codexResetCredits
+                        && card.usage.codexResetCredits.availableCount > 0)
             text: card.usage && card.usage.codexResetCredits
                   ? i18n("Limit Reset Credits: %1 available", card.usage.codexResetCredits.availableCount)
                   : ""
@@ -411,7 +411,7 @@ ColumnLayout {
     ColumnLayout {
         Layout.fillWidth: true
         visible: Plasmoid.configuration.showCost
-                 && card.d && card.d.cost !== undefined && card.d.cost !== null
+                 && !!(card.d && card.d.cost !== undefined && card.d.cost !== null)
         spacing: Math.round(Kirigami.Units.smallSpacing * 0.8)
 
         Rectangle {
@@ -479,8 +479,8 @@ ColumnLayout {
     }
 
     PlasmaComponents3.Label {
-        visible: !card.extrasOnly && card.usage && card.usage.identity
-                 && card.usage.identity.accountEmail !== undefined
+        visible: !card.extrasOnly && !!(card.usage && card.usage.identity
+                                        && card.usage.identity.accountEmail !== undefined)
         text: card.usage && card.usage.identity && card.usage.identity.accountEmail
               ? i18n("Account: %1", card.usage.identity.accountEmail) : ""
         opacity: 0.55
