@@ -92,6 +92,70 @@ ColumnLayout {
         return best
     }
 
+    // CodexBarCore CreditsSnapshot.displayRemaining: a workspace balance or a
+    // read balance counts; an unread placeholder (balanceReadSucceeded=false)
+    // must not surface as a real zero. Returns null when nothing is showable.
+    function creditsRemaining() {
+        var c = entry ? entry.credits : null
+        if (!c || typeof c !== "object")
+            return null
+        if (c.balanceReadSucceeded === true && c.balanceIsWorkspace === true)
+            return c.remaining
+        if (c.codexCreditLimit && typeof c.codexCreditLimit.remaining === "number")
+            return c.codexCreditLimit.remaining
+        if (c.balanceReadSucceeded === false)
+            return null
+        return typeof c.remaining === "number" ? c.remaining : null
+    }
+
+    // Generic `usage.details` sections (CodexBar >= 0.48): provider-specific
+    // rows the CLI already rendered as label/value text, optional progress.
+    function detailSections() {
+        plasmoidRoot.rev
+        var out = []
+        if (!usage || !usage.details || !usage.details.length)
+            return out
+        for (var i = 0; i < usage.details.length; i++) {
+            var section = usage.details[i]
+            if (!section || !section.rows || !section.rows.length)
+                continue
+            var rows = []
+            for (var r = 0; r < section.rows.length; r++) {
+                var row = section.rows[r]
+                if (!row || typeof row.label !== "string")
+                    continue
+                var value = typeof row.value === "string" ? row.value : ""
+                if (typeof row.secondaryValue === "string" && row.secondaryValue !== "")
+                    value = value !== "" ? value + " · " + row.secondaryValue : row.secondaryValue
+                var percent = -1
+                if (row.progress && typeof row.progress.used === "number"
+                        && typeof row.progress.total === "number" && row.progress.total > 0)
+                    percent = Catalog.normalizedPercent(row.progress.used / row.progress.total * 100)
+                rows.push({ label: row.label, value: value, percent: percent })
+            }
+            if (rows.length > 0)
+                out.push({ title: typeof section.title === "string" ? section.title : "", rows: rows })
+        }
+        return out
+    }
+
+    // Providers without a session window report a cost/quota budget instead
+    // (CLIRenderer.appendPrimaryLines fallback).
+    function providerCostLine() {
+        plasmoidRoot.rev
+        if (!usage || !usage.providerCost || Catalog.usableWindow(usage.primary))
+            return ""
+        var cost = usage.providerCost
+        if (typeof cost.used !== "number" || typeof cost.limit !== "number" || cost.limit <= 0)
+            return ""
+        var label = cost.currencyCode === "Quota" ? i18n("Quota") : i18n("Cost")
+        var unit = cost.currencyCode && cost.currencyCode !== "Quota" ? " " + cost.currencyCode : ""
+        var text = label + ": " + cost.used.toFixed(1) + " / " + cost.limit.toFixed(1) + unit
+        if (typeof cost.period === "string" && cost.period !== "")
+            text += " · " + cost.period
+        return text
+    }
+
     function todayCost() {
         plasmoidRoot.rev
         if (!d || !d.cost || !d.cost.daily)
@@ -211,11 +275,86 @@ ColumnLayout {
         }
     }
 
+    PlasmaComponents3.Label {
+        Layout.fillWidth: true
+        visible: !card.extrasOnly && text !== ""
+        text: card.providerCostLine()
+        opacity: 0.75
+        font: Kirigami.Theme.smallFont
+        elide: Text.ElideRight
+    }
+
+    // ---- provider detail sections (usage.details) ----
+    Repeater {
+        model: card.extrasOnly ? [] : card.detailSections()
+
+        ColumnLayout {
+            id: detailSection
+            required property var modelData
+            Layout.fillWidth: true
+            spacing: Math.round(Kirigami.Units.smallSpacing * 0.8)
+
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 1
+                color: Qt.alpha(Kirigami.Theme.textColor, 0.12)
+            }
+
+            PlasmaComponents3.Label {
+                visible: text !== ""
+                text: detailSection.modelData.title
+                font.weight: Font.DemiBold
+                font.pointSize: Kirigami.Theme.defaultFont.pointSize * 1.05
+            }
+
+            Repeater {
+                model: detailSection.modelData.rows
+
+                ColumnLayout {
+                    id: detailRow
+                    required property var modelData
+                    Layout.fillWidth: true
+                    spacing: Math.round(Kirigami.Units.smallSpacing / 2)
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: Kirigami.Units.smallSpacing
+
+                        PlasmaComponents3.Label {
+                            text: detailRow.modelData.label
+                            opacity: 0.75
+                            font: Kirigami.Theme.smallFont
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+
+                        PlasmaComponents3.Label {
+                            text: detailRow.modelData.value
+                            font: Kirigami.Theme.smallFont
+                            horizontalAlignment: Text.AlignRight
+                            elide: Text.ElideLeft
+                            Layout.maximumWidth: Math.round(card.width * 0.6)
+                        }
+                    }
+
+                    UsageBar {
+                        visible: detailRow.modelData.percent >= 0
+                        Layout.fillWidth: true
+                        percent: Math.max(0, detailRow.modelData.percent)
+                        fillColor: card.brandColor
+                    }
+                }
+            }
+
+            Item { Layout.preferredHeight: Kirigami.Units.smallSpacing }
+        }
+    }
+
     // ---- credits (Codex) ----
     ColumnLayout {
         Layout.fillWidth: true
         visible: !card.extrasOnly
-                 && ((card.entry && card.entry.credits && card.entry.credits.remaining !== undefined)
+                 && (card.creditsRemaining() !== null
                      || (card.usage && card.usage.codexResetCredits
                          && card.usage.codexResetCredits.availableCount > 0))
         spacing: Math.round(Kirigami.Units.smallSpacing * 0.8)
@@ -233,9 +372,9 @@ ColumnLayout {
         }
 
         PlasmaComponents3.Label {
-            visible: card.entry && card.entry.credits && card.entry.credits.remaining !== undefined
-            text: card.entry && card.entry.credits
-                  ? i18n("Credits: %1 left", card.entry.credits.remaining) : ""
+            visible: card.creditsRemaining() !== null
+            text: card.creditsRemaining() !== null
+                  ? i18n("Credits: %1 left", card.creditsRemaining()) : ""
             opacity: 0.75
             font: Kirigami.Theme.smallFont
         }
@@ -301,7 +440,7 @@ ColumnLayout {
         }
 
         PlasmaComponents3.Label {
-            visible: card.d && card.d.cost && card.d.cost.last30DaysCostUSD !== undefined
+            visible: !!(card.d && card.d.cost && card.d.cost.last30DaysCostUSD !== undefined)
             text: card.d && card.d.cost
                   ? i18n("Last 30 days: %1 · %2 tokens",
                          Catalog.money(card.d.cost.last30DaysCostUSD),

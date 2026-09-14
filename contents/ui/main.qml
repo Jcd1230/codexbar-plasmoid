@@ -49,6 +49,17 @@ PlasmoidItem {
     property var pendingCliChecks: ({})
     property int cliRequestSerial: 0
     readonly property bool cliSetupRequired: CliStatus.isSetupRequired(cliState.code)
+    // ---- bundled CLI installer (contents/scripts/install-cli.sh) ----
+    property bool cliInstallRunning: false
+    property string cliInstallOutput: ""
+    property int cliInstallExitCode: -1 // -1: never ran
+    property var pendingCliInstall: ({})
+    readonly property string cliInstallerPath: {
+        var url = Qt.resolvedUrl("../scripts/install-cli.sh").toString()
+        if (url.indexOf("file://") !== 0)
+            return ""
+        return decodeURIComponent(url.substring(7))
+    }
     // Providers whose CLI process died with SIGSEGV are skipped by automatic
     // refreshes. A manual refresh still retries after the CLI was upgraded.
     property var autoRefreshBlocked: ({})
@@ -171,6 +182,38 @@ PlasmoidItem {
     function retryCli() {
         autoRefreshBlocked = ({})
         startCliCheck()
+    }
+
+    // Runs the bundled installer, which downloads the official CodexBar CLI
+    // release for this machine into ~/.local/share/codexbar-cli, verifies the
+    // checksum and links ~/.local/bin/codexbar (already on the probe PATH).
+    function installCli() {
+        if (cliInstallRunning || cliInstallerPath === "")
+            return
+        cliInstallRunning = true
+        cliInstallOutput = ""
+        cliInstallExitCode = -1
+        var command = uniqueCliCommand(
+            commandPathPrefix + "timeout -k 10 1800 sh "
+                + shellQuote(cliInstallerPath) + " 2>&1",
+            "install", cliState.generation)
+        pendingCliInstall[command] = true
+        bump()
+        executable.connectSource(command)
+    }
+
+    function finishCliInstall(exitCode, stdout) {
+        cliInstallRunning = false
+        cliInstallExitCode = exitCode
+        cliInstallOutput = (stdout || "").trim()
+        if (exitCode === 0) {
+            // The installer targets ~/.local/bin/codexbar; a stale custom
+            // path would keep pointing the widget at the broken executable.
+            if ((Plasmoid.configuration.cliPath || "").trim() !== "")
+                Plasmoid.configuration.cliPath = ""
+            retryCli()
+        }
+        bump()
     }
 
     function manualRefresh() {
@@ -391,9 +434,15 @@ PlasmoidItem {
         executable.connectSource(cmd)
     }
 
-    function usageErrorText(exitCode, parseFailed) {
+    function usageErrorText(p, exitCode, parseFailed) {
         if (exitCode === 124 || exitCode === 137)
             return i18n("Timed out querying the CodexBar CLI")
+        var required = Catalog.meta(p).minCli
+        if (exitCode !== 0 && exitCode !== 127 && exitCode !== 139 && required
+                && cliState.detectedVersion !== ""
+                && CliStatus.compareVersions(cliState.detectedVersion, required) < 0)
+            return i18n("%1 needs CodexBar CLI %2 or newer (installed: %3)",
+                        Catalog.meta(p).name, required, cliState.detectedVersion)
         if (exitCode === 139)
             return i18n("CodexBar CLI crashed — update to version %1 or newer, then retry", CliStatus.MINIMUM_VERSION)
         if (exitCode === 127)
@@ -415,6 +464,12 @@ PlasmoidItem {
                 cliState, cliCheck.generation, exitCode, stdout)
             bump()
             refreshAll(true)
+            return
+        }
+
+        if (pendingCliInstall[source] !== undefined) {
+            delete pendingCliInstall[source]
+            finishCliInstall(exitCode, stdout)
             return
         }
 
@@ -508,7 +563,7 @@ PlasmoidItem {
                 cliState = CliStatus.applyUsageResult(
                     cliState, req.cliGeneration, exitCode, true, false)
             } else {
-                d.error = usageErrorText(exitCode, parseFailed)
+                d.error = usageErrorText(req.p, exitCode, parseFailed)
                 d.errorCode = CliStatus.usageFailureCode(exitCode, parseFailed)
                 cliState = CliStatus.applyUsageResult(
                     cliState, req.cliGeneration, exitCode, false, parseFailed)

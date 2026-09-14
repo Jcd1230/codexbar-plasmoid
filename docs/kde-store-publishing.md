@@ -13,7 +13,8 @@ upload, and publication must be performed by the maintainer.
 - Source URL: <https://github.com/psimaker/codexbar-plasmoid>
 - Issues: <https://github.com/psimaker/codexbar-plasmoid/issues>
 - Minimum desktop version: **KDE Plasma 6.0**
-- External dependency: **CodexBar CLI 0.43.0 or newer**
+- External dependency: **CodexBar CLI 0.43.0 or newer** (the widget offers a
+  user-local installer for it; the latest CLI release is recommended)
 - Recommended tags: `kde`, `plasma`, `plasma6`, `plasmoid`, `kde-widget`,
   `panel`, `codexbar`, `usage`, `monitoring`
 
@@ -26,7 +27,8 @@ tokens, or unrelated desktop notifications.
 - Panel view showing the CodexBar icon at normal panel size.
 - Popup overview with at least two providers and representative usage bars.
 - Provider detail page with session and weekly limits.
-- CLI setup card shown with the CLI intentionally unavailable.
+- CLI setup card shown with the CLI intentionally unavailable, including the
+  **Install CodexBar CLI** button.
 - General settings page showing the custom CLI path field.
 - At least one dark-theme and one light-theme view.
 
@@ -68,6 +70,10 @@ that they still match the release being submitted.
       provider with a compatible CLI.
 - [ ] Temporarily configure a nonexistent CLI path and verify the setup card,
       both documentation links, the configuration hint, and **Retry**.
+- [ ] With the CLI removed from `PATH`, use **Install CodexBar CLI** in the
+      setup card and confirm the popup recovers without a Plasma restart.
+- [ ] Run `scripts/install.sh --widget-only --version v<version>` on a fresh
+      user profile and confirm it installs the release package.
 - [ ] Upgrade an installation of the preceding released package:
 
       ```bash
