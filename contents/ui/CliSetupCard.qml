@@ -69,6 +69,59 @@ Rectangle {
 
         PlasmaComponents3.Button {
             Layout.fillWidth: true
+            text: card.plasmoidRoot.cliInstallRunning
+                  ? i18n("Installing CodexBar CLI…")
+                  : (card.plasmoidRoot.cliState.reason === CliStatus.REASON_VERSION_TOO_OLD
+                     ? i18n("Update CodexBar CLI") : i18n("Install CodexBar CLI"))
+            icon.name: "download-symbolic"
+            enabled: !card.plasmoidRoot.cliInstallRunning
+                     && card.plasmoidRoot.cliInstallerPath !== ""
+            Accessible.name: text
+            onClicked: card.plasmoidRoot.installCli()
+        }
+
+        PlasmaComponents3.Label {
+            Layout.fillWidth: true
+            text: i18n("Downloads the official CodexBar CLI release for this computer into ~/.local/share/codexbar-cli, verifies its checksum and links ~/.local/bin/codexbar. No root required.")
+            wrapMode: Text.WordWrap
+            opacity: 0.75
+            font: Kirigami.Theme.smallFont
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            visible: card.plasmoidRoot.cliInstallRunning
+            spacing: Kirigami.Units.smallSpacing
+
+            PlasmaComponents3.BusyIndicator {
+                Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
+                Layout.preferredHeight: Kirigami.Units.iconSizes.smallMedium
+                running: card.plasmoidRoot.cliInstallRunning
+            }
+
+            PlasmaComponents3.Label {
+                Layout.fillWidth: true
+                text: i18n("Downloading and verifying the CLI (about 160 MB)…")
+                wrapMode: Text.WordWrap
+                font: Kirigami.Theme.smallFont
+            }
+        }
+
+        PlasmaComponents3.Label {
+            Layout.fillWidth: true
+            visible: !card.plasmoidRoot.cliInstallRunning
+                     && card.plasmoidRoot.cliInstallExitCode > 0
+            text: {
+                var lines = card.plasmoidRoot.cliInstallOutput.split("\n")
+                return i18n("Installation failed:") + "\n" + lines.slice(-4).join("\n")
+            }
+            wrapMode: Text.WrapAnywhere
+            color: Kirigami.Theme.negativeTextColor
+            font: Kirigami.Theme.smallFont
+        }
+
+        PlasmaComponents3.Button {
+            Layout.fillWidth: true
             text: i18n("Open installation guide")
             icon.name: "documentation-symbolic"
             Accessible.name: text

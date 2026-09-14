@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
+import "code/cliStatus.js" as CliStatus
 
 ColumnLayout {
     id: about
@@ -52,6 +53,54 @@ ColumnLayout {
     }
 
     Item { Layout.preferredHeight: Kirigami.Units.smallSpacing }
+
+    PlasmaComponents3.Label {
+        Layout.fillWidth: true
+        text: {
+            about.plasmoidRoot.rev
+            var state = about.plasmoidRoot.cliState
+            if (about.plasmoidRoot.cliInstallRunning)
+                return i18n("CodexBar CLI: installing…")
+            if (state.code === CliStatus.CHECKING)
+                return i18n("CodexBar CLI: checking…")
+            if (state.detectedVersion !== "")
+                return state.code === CliStatus.INCOMPATIBLE
+                    ? i18n("CodexBar CLI: %1 installed, %2 or newer required", state.detectedVersion, CliStatus.MINIMUM_VERSION)
+                    : i18n("CodexBar CLI: %1 installed", state.detectedVersion)
+            if (state.code === CliStatus.MISSING)
+                return i18n("CodexBar CLI: not found")
+            return i18n("CodexBar CLI: unavailable")
+        }
+        wrapMode: Text.WordWrap
+        opacity: 0.75
+        font: Kirigami.Theme.smallFont
+    }
+
+    PlasmaComponents3.Label {
+        Layout.fillWidth: true
+        visible: !about.plasmoidRoot.cliInstallRunning
+                 && about.plasmoidRoot.cliInstallExitCode >= 0
+        text: {
+            var lines = about.plasmoidRoot.cliInstallOutput.split("\n")
+            return lines.slice(-3).join("\n")
+        }
+        wrapMode: Text.WrapAnywhere
+        color: about.plasmoidRoot.cliInstallExitCode === 0
+               ? Kirigami.Theme.positiveTextColor : Kirigami.Theme.negativeTextColor
+        font: Kirigami.Theme.smallFont
+    }
+
+    MenuRow {
+        iconName: "download-symbolic"
+        label: about.plasmoidRoot.cliInstallRunning
+               ? i18n("Installing CodexBar CLI…")
+               : (about.plasmoidRoot.cliState.detectedVersion !== ""
+                  ? i18n("Update CodexBar CLI to the latest release")
+                  : i18n("Install CodexBar CLI"))
+        interactive: !about.plasmoidRoot.cliInstallRunning
+                     && about.plasmoidRoot.cliInstallerPath !== ""
+        onActivated: about.plasmoidRoot.installCli()
+    }
 
     MenuRow {
         iconName: "internet-services-symbolic"

@@ -18,14 +18,16 @@ a faithful re-creation of [CodexBar](https://github.com/steipete/CodexBar)
   rate windows ("Codex Spark", model-scoped weekly caps, …) with progress
   bars, reset countdowns and a pace line, Codex reset credits, cost
   (today / last 30 days from local token logs via `codexbar cost`),
-  provider status and account info. Cost scanning is disabled by default
-  because large local histories can be resource-intensive.
+  provider status and account info, plus the CLI's generic detail rows
+  (balances, monthly spend, credit pools, …) for the providers that report
+  them. Cost scanning is disabled by default because large local histories
+  can be resource-intensive.
 - **Actions:** Refresh, explicit cost-history refresh, Usage Dashboard, Status
   Page, Settings, About.
 - **Optional Claude multi-account view:** stacked 5-hour and 7-day cards,
   active-account state, and explicit account switching through a compatible
   schema-v1 `claude-swap` adapter.
-- **Settings:** refresh interval, any of the 58 providers the CLI supports,
+- **Settings:** refresh interval, any of the 69 providers the CLI supports,
   panel percentage (session/weekly/lowest, remaining/used), plain bars,
   cost/status toggles, custom CLI path, Claude account adapter.
 
@@ -33,40 +35,57 @@ a faithful re-creation of [CodexBar](https://github.com/steipete/CodexBar)
 
 - KDE Plasma 6 (`kpackagetool6`)
 - The external [CodexBar CLI](https://github.com/steipete/CodexBar/blob/main/docs/cli.md)
-  version 0.43.0 or newer
+  version 0.43.0 or newer. The widget can download it for you (see below);
+  the latest release is recommended because newer providers need it.
 
 The Plasma widget and the CodexBar CLI are installed separately. The CLI is
-not bundled in the `.plasmoid` file.
+not bundled in the `.plasmoid` file, but the widget bundles an installer for
+it.
 
-## Install the Plasma widget
+## Quick install
 
-### Install from a `.plasmoid` file — recommended
+One command installs (or updates) both the widget and the CLI for the current
+user. No root required:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/psimaker/codexbar-plasmoid/main/scripts/install.sh | sh
+```
+
+Then right-click the panel, choose **Add Widgets…**, and search for
+**CodexBar**.
+
+The script downloads the current `.plasmoid` from
+[GitHub Releases](https://github.com/psimaker/codexbar-plasmoid/releases),
+verifies its SHA-256 checksum, and installs it with `kpackagetool6`. It then
+downloads the matching official CodexBar CLI archive for your CPU
+(`x86_64` or `aarch64`), verifies that checksum too, keeps the CLI under
+`~/.local/share/codexbar-cli/<version>/`, and links it as
+`~/.local/bin/codexbar`. Use `--widget-only` or `--cli-only` to install one
+part, and `--version v0.4.0` to pin a widget release. Re-run the command to
+update. An updated widget takes effect after Plasma reloads it (log out and in,
+or `systemctl --user restart plasma-plasmashell.service`).
+
+Prefer to read before you run? The script is
+[`scripts/install.sh`](scripts/install.sh); the CLI part is
+[`contents/scripts/install-cli.sh`](contents/scripts/install-cli.sh).
+
+## Install the Plasma widget manually
+
+### From a `.plasmoid` file
 
 1. Download the current `.plasmoid` file from
    [GitHub Releases](https://github.com/psimaker/codexbar-plasmoid/releases).
-2. Right-click the Plasma panel or desktop.
-3. Select **Add Widgets…**.
-4. Select **Get New Widgets**.
-5. Select **Install Widget From Local File…**.
-6. Select the downloaded `.plasmoid` file.
-7. Search for **CodexBar** and add it to the panel.
+2. Right-click the Plasma panel or desktop and select **Add Widgets…**.
+3. Select **Get New Widgets** → **Install Widget From Local File…** and pick
+   the downloaded file.
+4. Search for **CodexBar** and add it to the panel.
 
-To install the downloaded file from a terminal instead:
+From a terminal instead:
 
 ```bash
-kpackagetool6 -t Plasma/Applet -i com.github.psimaker.codexbar-<version>.plasmoid
-```
-
-Update an installed widget from a newer local package:
-
-```bash
-kpackagetool6 -t Plasma/Applet -u com.github.psimaker.codexbar-<version>.plasmoid
-```
-
-Remove the widget package:
-
-```bash
-kpackagetool6 -t Plasma/Applet -r com.github.psimaker.codexbar
+kpackagetool6 -t Plasma/Applet -i com.github.psimaker.codexbar-<version>.plasmoid   # install
+kpackagetool6 -t Plasma/Applet -u com.github.psimaker.codexbar-<version>.plasmoid   # update
+kpackagetool6 -t Plasma/Applet -r com.github.psimaker.codexbar                     # remove
 ```
 
 Each release also provides a `.sha256` file. Download it into the same
@@ -76,70 +95,53 @@ directory as the `.plasmoid` file and verify the package before installing it:
 sha256sum -c com.github.psimaker.codexbar-<version>.plasmoid.sha256
 ```
 
-The command must report the `.plasmoid` file as `OK`.
-
 ### KDE Store
 
 A KDE Store publication is planned, but the widget is not currently documented
 as available there. Until a listing is published and verified, use the
 `.plasmoid` package from GitHub Releases.
 
-### Install from source — development
-
-Use a source checkout only for development:
+### From source (development)
 
 ```bash
 git clone https://github.com/psimaker/codexbar-plasmoid.git
 cd codexbar-plasmoid
-kpackagetool6 -t Plasma/Applet -i .
+kpackagetool6 -t Plasma/Applet -i .     # later: -u . to update
 ```
 
-Update a development installation after pulling changes:
-
-```bash
-kpackagetool6 -t Plasma/Applet -u .
-```
-
-To build the same minimal package used for releases, run:
-
-```bash
-scripts/build-plasmoid.sh
-```
-
-The script packages the current committed `HEAD` and writes the `.plasmoid`
-file and SHA-256 checksum under `dist/`. Pass a Git ref to package an exact
-commit or tag, for example `scripts/build-plasmoid.sh v0.3.1`. Existing output
-is preserved unless `--force` is supplied. The archive contains only
-`metadata.json`, `contents/`, and `LICENSE` from the selected commit.
+To build the same minimal package used for releases, run
+`scripts/build-plasmoid.sh`. The script packages the current committed `HEAD`
+and writes the `.plasmoid` file and SHA-256 checksum under `dist/`. Pass a Git
+ref to package an exact commit or tag, for example
+`scripts/build-plasmoid.sh v0.3.1`. Existing output is preserved unless
+`--force` is supplied. The archive contains only `metadata.json`, `contents/`,
+and `LICENSE` from the selected commit.
 
 ## Install the CodexBar CLI
 
-Install CodexBar CLI version 0.43.0 or newer separately. The widget finds
-`codexbar` on `PATH`; alternatively, right-click the widget, select
-**Configure CodexBar…**, and set a custom CLI path.
+Pick one of these. The widget finds `codexbar` on `PATH` (including
+`~/.local/bin`); alternatively right-click the widget, select **Configure
+CodexBar…**, and set a custom CLI path.
 
-Homebrew and Linuxbrew provide the upstream-supported formula:
+- **From the widget.** When the CLI is missing or too old, the popup shows a
+  setup card with an **Install CodexBar CLI** button. The **About CodexBar**
+  page offers **Update CodexBar CLI to the latest release** at any time. Both
+  run the bundled `install-cli.sh` described above: official release archive,
+  checksum verified, user-local, no root.
+- **Package manager.** Homebrew/Linuxbrew: `brew install steipete/tap/codexbar`.
+  Arch Linux (AUR): `yay -S codexbar-cli`.
+- **Manual download.** Get `CodexBarCLI-v<tag>-linux-<arch>.tar.gz` from the
+  [CodexBar releases](https://github.com/steipete/CodexBar/releases) (there is
+  also a static `linux-musl` build for systems with an older glibc). Extract
+  the whole archive and keep the `CodexBarCLI` executable, its `VERSION` file,
+  and the `CodexBar_CodexBarCore.bundle` directory together:
 
-```bash
-brew install steipete/tap/codexbar
-codexbar --version
-```
-
-For a user-local installation without Homebrew, download the appropriate
-official `CodexBarCLI-v<tag>-linux-<arch>.tar.gz` file from the
-[CodexBar releases](https://github.com/steipete/CodexBar/releases). Then keep
-the extracted `CodexBarCLI` executable and its `VERSION` file together:
-
-```bash
-mkdir -p ~/.local/share/codexbar-cli ~/.local/bin
-tar -xzf CodexBarCLI-v<tag>-linux-<arch>.tar.gz -C ~/.local/share/codexbar-cli
-ln -sfn ~/.local/share/codexbar-cli/CodexBarCLI ~/.local/bin/codexbar
-~/.local/bin/codexbar --version
-```
-
-Choose the archive matching the system architecture, such as `x86_64` or
-`aarch64`. Ensure `~/.local/bin` is on the shell `PATH`, or configure
-`~/.local/bin/codexbar` as the widget's custom CLI path.
+  ```bash
+  mkdir -p ~/.local/share/codexbar-cli/<tag> ~/.local/bin
+  tar -xzf CodexBarCLI-v<tag>-linux-<arch>.tar.gz -C ~/.local/share/codexbar-cli/<tag>
+  ln -sfn ~/.local/share/codexbar-cli/<tag>/CodexBarCLI ~/.local/bin/codexbar
+  ~/.local/bin/codexbar --version
+  ```
 
 Before using the widget, install and sign in to the provider tools or configure
 the provider credentials that CodexBar uses (Claude Code, Codex CLI, and so
@@ -214,8 +216,8 @@ panel icon, overview, cost, provider status, and fallback card.
 ## Not ported (macOS-only upstream features)
 
 Menu bar animations (blink/wiggle), WidgetKit widgets, notifications,
-cost-history charts, and the "Add Account" flow — logins are handled by the
-provider CLIs themselves.
+cost-history and detail-section charts, and the "Add Account" flow — logins
+are handled by the provider CLIs themselves.
 
 ## Credits & license
 
