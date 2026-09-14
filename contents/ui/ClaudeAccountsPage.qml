@@ -33,7 +33,7 @@ ColumnLayout {
 
     PlasmaComponents3.Label {
         Layout.fillWidth: true
-        visible: page.d.error && page.d.error.length > 0
+        visible: !!page.d.error && page.d.error.length > 0
         text: page.showAccounts
             ? i18n("Showing the last successful account update: %1", page.d.error)
             : page.d.error
@@ -45,7 +45,7 @@ ColumnLayout {
 
     PlasmaComponents3.Label {
         Layout.fillWidth: true
-        visible: page.d.switchError && page.d.switchError.length > 0
+        visible: !!page.d.switchError && page.d.switchError.length > 0
         text: i18n("Account switch failed: %1", page.d.switchError)
         color: Kirigami.Theme.negativeTextColor
         opacity: 0.9

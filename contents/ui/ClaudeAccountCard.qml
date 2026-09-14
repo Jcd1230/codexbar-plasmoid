@@ -113,21 +113,21 @@ ColumnLayout {
         // rather than the `disabled` flag keeps this from reading as a broken
         // or unusable account — the slot still works and stays switchable.
         PlasmaComponents3.Label {
-            visible: card.account && card.account.disabled === true
+            visible: !!(card.account && card.account.disabled === true)
             text: i18n("Not in rotation")
             color: Kirigami.Theme.neutralTextColor
             font: Kirigami.Theme.smallFont
         }
 
         PlasmaComponents3.Label {
-            visible: card.account && card.account.active
+            visible: !!(card.account && card.account.active)
             text: i18n("Active")
             color: Kirigami.Theme.positiveTextColor
             font: Kirigami.Theme.smallFont
         }
 
         QQC2.ToolButton {
-            visible: card.account && !card.account.active
+            visible: !!(card.account && !card.account.active)
                      && ClaudeAccounts.canActivate(card.account)
             text: card.switching ? i18n("Switching…") : i18n("Switch account…")
             enabled: card.plasmoidRoot.canSwitchClaudeAccount(card.account)
@@ -153,7 +153,7 @@ ColumnLayout {
 
     PlasmaComponents3.Label {
         Layout.fillWidth: true
-        visible: card.lastKnownUsage && card.sections().length > 0
+        visible: !!card.lastKnownUsage && card.sections().length > 0
         text: i18n("Last known usage — not current")
         opacity: 0.7
         font: Kirigami.Theme.smallFont
