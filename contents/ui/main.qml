@@ -7,6 +7,7 @@ import org.kde.kirigami as Kirigami
 import "code/catalog.js" as Catalog
 import "code/claudeAccounts.js" as ClaudeAccounts
 import "code/cliStatus.js" as CliStatus
+import "code/providerSources.js" as ProviderSources
 
 PlasmoidItem {
     id: root
@@ -44,6 +45,10 @@ PlasmoidItem {
         'PATH="$HOME/.local/bin:$PATH:/usr/local/bin:/usr/bin:/bin"; '
     readonly property string cliExecutable:
         CliStatus.executableForPath(Plasmoid.configuration.cliPath)
+    // Optional KEY=VALUE file exported only into the CLI child process, so
+    // provider API keys never have to live in Plasma's applet configuration.
+    readonly property string cliEnvironmentFile:
+        (Plasmoid.configuration.cliEnvironmentFile || "").trim()
     property string lastCheckedCliExecutable: ""
     property var cliState: CliStatus.initialState()
     property var pendingCliChecks: ({})
@@ -149,8 +154,19 @@ PlasmoidItem {
         var seconds = typeof timeoutSeconds === "number" ? timeoutSeconds : 120
         var killDelay = seconds <= 10 ? 5 : 10
         // Plasma's environment may omit user or system bin directories.
-        return commandPathPrefix + "timeout -k " + killDelay + " " + seconds + " "
+        return commandPathPrefix + environmentFilePrefix()
+            + "timeout -k " + killDelay + " " + seconds + " "
             + quoted + " " + args + " 2>/dev/null"
+    }
+
+    // `set -a; . file; set +a` is the EnvironmentFile idiom: every KEY=VALUE
+    // line becomes exported. A missing file is skipped rather than failing
+    // every probe, and the file is only read for codexbar invocations.
+    function environmentFilePrefix() {
+        if (cliEnvironmentFile === "")
+            return ""
+        var quoted = shellQuoteExecutable(cliEnvironmentFile)
+        return "if [ -f " + quoted + " ]; then set -a; . " + quoted + "; set +a; fi; "
     }
 
     function uniqueCliCommand(command, kind, generation) {
@@ -428,6 +444,7 @@ PlasmoidItem {
         var cliGeneration = cliState.generation
         var cmd = uniqueCliCommand(
             cliCmd("usage --provider " + p + " --json"
+                   + ProviderSources.cliArguments(Plasmoid.configuration.providerSources, p)
                    + (Plasmoid.configuration.showStatus ? " --status" : "")),
             "usage-" + p, cliGeneration)
         pendingUsage[cmd] = { p: p, gen: gen, cliGeneration: cliGeneration }
@@ -698,6 +715,19 @@ PlasmoidItem {
         clearClaudeAccountData()
         if (claudeAccountsEnabled)
             refreshClaudeAccounts()
+    }
+
+    Connections {
+        target: Plasmoid.configuration
+        function onProviderSourcesChanged() {
+            if (root.componentReady)
+                root.refreshAll(true)
+        }
+    }
+
+    onCliEnvironmentFileChanged: {
+        if (componentReady)
+            refreshAll(true)
     }
 
     onEnabledProvidersChanged: {

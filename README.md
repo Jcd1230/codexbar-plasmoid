@@ -145,6 +145,15 @@ Cost scanning is off by default because large local histories can be resource-in
 </details>
 
 <details>
+<summary><b>Per-provider data source and CLI environment</b></summary>
+<br>
+
+**Source.** Some providers have several CodexBar data sources with different speed and credential needs (for example OpenCode Go: the automatic local-database scan versus the API with `OPENCODE_API_KEY`). The **Providers** settings page has a source column per provider (Auto, Web, CLI, OAuth, API) that is passed to the CLI as `--source`. Auto leaves the decision to the CLI. See the CodexBar CLI documentation for what each provider supports.
+
+**Environment.** Plasma does not pass your interactive shell environment to widgets. Set **CLI environment file** in the General settings to a file with `KEY=VALUE` lines (for example `~/.config/codexbar/widget.env`, `chmod 600`; quote values that contain spaces, the file is read like a shell `EnvironmentFile`). The widget exports those variables only into the `codexbar` process it starts, so API keys never have to be stored in Plasma's applet configuration. A missing file is ignored. Anything CodexBar itself can read from `~/.config/codexbar/config.json` works there as well.
+</details>
+
+<details>
 <summary><b>Optional Claude multi-account adapter</b></summary>
 <br>
 

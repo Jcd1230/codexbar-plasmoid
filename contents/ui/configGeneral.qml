@@ -15,6 +15,7 @@ KCM.SimpleKCM {
     property alias cfg_showCost: showCost.checked
     property alias cfg_showStatus: showStatus.checked
     property alias cfg_cliPath: cliPath.text
+    property alias cfg_cliEnvironmentFile: cliEnvironmentFile.text
     property alias cfg_enableClaudeAccounts: enableClaudeAccounts.checked
     property alias cfg_claudeAdapterPath: claudeAdapterPath.text
     property string cfg_panelPercentSource
@@ -137,6 +138,21 @@ KCM.SimpleKCM {
             Kirigami.FormData.label: i18n("codexbar CLI path:")
             placeholderText: i18n("auto (codexbar in PATH)")
             Layout.fillWidth: true
+        }
+
+        QQC2.TextField {
+            id: cliEnvironmentFile
+            Kirigami.FormData.label: i18n("CLI environment file:")
+            placeholderText: i18n("optional, e.g. ~/.config/codexbar/widget.env")
+            Layout.fillWidth: true
+        }
+
+        QQC2.Label {
+            Layout.fillWidth: true
+            text: i18n("KEY=VALUE lines exported only to the codexbar process, for provider API keys such as OPENCODE_API_KEY. Quote values that contain spaces. Keep the file readable by you alone (chmod 600). Plasma does not pass your shell environment to widgets.")
+            wrapMode: Text.WordWrap
+            opacity: 0.7
+            font: Kirigami.Theme.smallFont
         }
 
         Item { Kirigami.FormData.isSection: true }

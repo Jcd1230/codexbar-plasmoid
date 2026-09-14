@@ -4,11 +4,17 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kcmutils as KCM
 import "code/catalog.js" as Catalog
+import "code/providerSources.js" as ProviderSources
 
 KCM.SimpleKCM {
     id: page
 
     property string cfg_enabledProviders
+    property string cfg_providerSources
+
+    readonly property var sourceLabels: [
+        i18n("Auto"), i18n("Web"), i18n("CLI"), i18n("OAuth"), i18n("API")
+    ]
 
     function enabledList() {
         return (cfg_enabledProviders || "").split(",")
@@ -31,7 +37,7 @@ KCM.SimpleKCM {
 
         QQC2.Label {
             Layout.fillWidth: true
-            text: i18n("Providers are probed with the codexbar CLI. Only enable providers you actually use — each one costs a probe per refresh.")
+            text: i18n("Providers are probed with the codexbar CLI. Only enable providers you actually use — each one costs a probe per refresh. The source column picks the CodexBar data source (--source) for a provider; Auto lets the CLI decide.")
             wrapMode: Text.WordWrap
             opacity: 0.7
         }
@@ -84,6 +90,21 @@ KCM.SimpleKCM {
                     text: row.modelData
                     opacity: 0.5
                     font: Kirigami.Theme.smallFont
+                }
+
+                QQC2.ComboBox {
+                    id: sourceCombo
+                    enabled: page.enabledList().indexOf(row.modelData) >= 0
+                    model: page.sourceLabels
+                    Accessible.name: i18n("Data source for %1", Catalog.meta(row.modelData).name)
+                    currentIndex: {
+                        page.cfg_providerSources
+                        return Math.max(0, ProviderSources.SOURCES.indexOf(
+                            ProviderSources.sourceFor(page.cfg_providerSources, row.modelData)))
+                    }
+                    onActivated: page.cfg_providerSources = ProviderSources.withSource(
+                        page.cfg_providerSources, row.modelData,
+                        ProviderSources.SOURCES[currentIndex])
                 }
             }
         }
