@@ -196,6 +196,11 @@ ColumnLayout {
                     text: Catalog.resetText(section.modelData.win, card.plasmoidRoot.nowMs)
                     opacity: 0.6
                     font: Kirigami.Theme.smallFont
+
+                    HoverHandler { id: usageResetHover }
+                    QQC2.ToolTip.visible: usageResetHover.hovered && QQC2.ToolTip.text !== ""
+                    QQC2.ToolTip.delay: 300
+                    QQC2.ToolTip.text: Catalog.resetDateTimeText(section.modelData.win)
                 }
             }
 
@@ -265,6 +270,11 @@ ColumnLayout {
                 text: Catalog.resetText(spendSection.spend, card.plasmoidRoot.nowMs)
                 opacity: 0.6
                 font: Kirigami.Theme.smallFont
+
+                HoverHandler { id: spendResetHover }
+                QQC2.ToolTip.visible: spendResetHover.hovered && QQC2.ToolTip.text !== ""
+                QQC2.ToolTip.delay: 300
+                QQC2.ToolTip.text: Catalog.resetDateTimeText(spendSection.spend)
             }
         }
 

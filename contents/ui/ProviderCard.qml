@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PlasmaComponents3
@@ -32,6 +33,26 @@ ColumnLayout {
         var out = []
         if (!usage)
             return out
+        // Antigravity mirrors quota windows into generic slots and also reports
+        // explicit Gemini/Claude-GPT windows. Use the canonical Gemini pair when
+        // present so we neither duplicate bars nor mix model families.
+        if (providerId === "antigravity") {
+            var geminiWindows = Catalog.antigravityGeminiWindows(usage)
+            if (geminiWindows.length > 0) {
+                for (var g = 0; g < geminiWindows.length; g++) {
+                    var gew = geminiWindows[g]
+                    var gw = gew.window
+                    var gm = Catalog.effectiveWindowMinutes(gw, providerId, "extra")
+                    out.push({
+                        title: gew.title,
+                        win: gw,
+                        minutes: gm,
+                        pace: null
+                    })
+                }
+                return out
+            }
+        }
         var slots = ["primary", "secondary", "tertiary"]
         for (var i = 0; i < slots.length; i++) {
             var slot = slots[i]
@@ -255,9 +276,15 @@ ColumnLayout {
                 Item { Layout.fillWidth: true }
 
                 PlasmaComponents3.Label {
+                    id: resetLabel
                     text: Catalog.resetText(section.modelData.win, plasmoidRoot.nowMs)
                     opacity: 0.6
                     font: Kirigami.Theme.smallFont
+
+                    HoverHandler { id: resetHover }
+                    QQC2.ToolTip.visible: resetHover.hovered && QQC2.ToolTip.text !== ""
+                    QQC2.ToolTip.delay: 300
+                    QQC2.ToolTip.text: Catalog.resetDateTimeText(section.modelData.win)
                 }
             }
 
