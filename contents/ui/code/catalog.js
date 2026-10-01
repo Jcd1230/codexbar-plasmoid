@@ -141,6 +141,22 @@ function resetText(win, nowMs) {
     return ""
 }
 
+// Exact local reset time for hover text. Keep the normal label relative and
+// compact; the tooltip supplies the wall-clock answer when the user wants it.
+function resetDateTimeText(win) {
+    if (!win || !win.resetsAt) return ""
+    var t = Date.parse(win.resetsAt)
+    if (isNaN(t)) return ""
+    var d = new Date(t)
+    var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    var hours = d.getHours()
+    var suffix = hours >= 12 ? "PM" : "AM"
+    var hour12 = hours % 12 || 12
+    var minutes = d.getMinutes()
+    var minuteText = minutes < 10 ? "0" + minutes : String(minutes)
+    return "Resets " + days[d.getDay()] + " " + hour12 + ":" + minuteText + " " + suffix
+}
+
 function duration(s) {
     // round remaining time UP to whole minutes and drop zero sub-units,
     // matching the upstream UsageFormatter
@@ -189,8 +205,41 @@ function effectiveWindowMinutes(w, providerId, slot) {
     return 0
 }
 
+var ANTIGRAVITY_GEMINI_WINDOW_IDS = [
+    "antigravity-quota-summary-gemini-5h",
+    "antigravity-quota-summary-gemini-weekly"
+]
+
+// Antigravity reports its model-family quotas as extra windows while also
+// mirroring some of them into the generic primary/secondary slots. Prefer the
+// explicitly identified Gemini windows so the panel and provider card do not
+// accidentally select the Claude/GPT quota or show duplicate bars.
+function antigravityGeminiWindows(usage) {
+    if (!usage || !Array.isArray(usage.extraRateWindows)) return []
+    var out = []
+    for (var wantedIndex = 0; wantedIndex < ANTIGRAVITY_GEMINI_WINDOW_IDS.length; wantedIndex++) {
+        var wantedId = ANTIGRAVITY_GEMINI_WINDOW_IDS[wantedIndex]
+        for (var i = 0; i < usage.extraRateWindows.length; i++) {
+            var ew = usage.extraRateWindows[i]
+            if (!ew || ew.id !== wantedId) continue
+            var w = usableWindow(ew.window)
+            if (w) out.push({ id: ew.id, title: ew.title || "Extra", window: w })
+            break
+        }
+    }
+    return out
+}
+
 function windowFor(usage, providerId, wantedMinutes) {
     if (!usage) return null
+    if (providerId === "antigravity") {
+        var geminiWindows = antigravityGeminiWindows(usage)
+        for (var g = 0; g < geminiWindows.length; g++) {
+            var gw = geminiWindows[g].window
+            if (effectiveWindowMinutes(gw, providerId, "extra") === wantedMinutes)
+                return gw
+        }
+    }
     var slots = ["primary", "secondary", "tertiary"]
     for (var i = 0; i < slots.length; i++) {
         var w = usableWindow(usage[slots[i]])

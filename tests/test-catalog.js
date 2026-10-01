@@ -43,4 +43,47 @@ assert.equal(
     ""
 )
 
+const resetAt = new Date()
+resetAt.setHours(13, 5, 0, 0)
+const resetDay = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][resetAt.getDay()]
+assert.equal(
+    catalog.resetDateTimeText({ resetsAt: resetAt.toISOString() }),
+    "Resets " + resetDay + " 1:05 PM"
+)
+assert.equal(catalog.resetDateTimeText({}), "")
+
+const antigravityUsage = {
+    primary: { usedPercent: 76, windowMinutes: 300 },
+    secondary: { usedPercent: 0, windowMinutes: 300 },
+    extraRateWindows: [
+        {
+            id: "antigravity-quota-summary-gemini-5h",
+            title: "Gemini 5-hour",
+            window: { usedPercent: 76, windowMinutes: 300 },
+        },
+        {
+            id: "antigravity-quota-summary-gemini-weekly",
+            title: "Gemini weekly",
+            window: { usedPercent: 69, windowMinutes: 10080 },
+        },
+        {
+            id: "antigravity-quota-summary-3p-5h",
+            title: "Claude/GPT 5-hour",
+            window: { usedPercent: 0, windowMinutes: 300 },
+        },
+        {
+            id: "antigravity-quota-summary-3p-weekly",
+            title: "Claude/GPT weekly",
+            window: { usedPercent: 0, windowMinutes: 10080 },
+        },
+    ],
+}
+
+const antigravityWindows = catalog.antigravityGeminiWindows(antigravityUsage)
+assert.equal(antigravityWindows.length, 2)
+assert.equal(antigravityWindows[0].id, "antigravity-quota-summary-gemini-5h")
+assert.equal(antigravityWindows[1].id, "antigravity-quota-summary-gemini-weekly")
+assert.equal(catalog.windowFor(antigravityUsage, "antigravity", 300).usedPercent, 76)
+assert.equal(catalog.windowFor(antigravityUsage, "antigravity", 10080).usedPercent, 69)
+
 console.log("Catalog tests passed")
