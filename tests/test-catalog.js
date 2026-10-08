@@ -34,6 +34,39 @@ assert.equal(
     "Pace: 11% in reserve · Lasts until reset"
 )
 
+// A weekly reset 3.5 days from now means 50% of the quota week has elapsed.
+const midpointWeek = { usedPercent: 35, resetsAt: new Date(now + 3.5 * 86400000).toISOString() }
+assert.equal(catalog.weeklyPaceExpectedPercent(null, midpointWeek, 10080, now), 50)
+assert.equal(
+    catalog.paceLine(null, midpointWeek, 10080, now, "codex"),
+    "Pace: 15% in reserve · Lasts until reset"
+)
+
+// The CLI's own pace calculation and the Claude adapter's expectedPct win over
+// local elapsed-time calculations. A session or invalid week has no marker.
+assert.equal(
+    catalog.weeklyPaceExpectedPercent({ expectedUsedPercent: 62 }, midpointWeek, 10080, now),
+    62
+)
+assert.equal(
+    catalog.weeklyPaceExpectedPercent(null,
+        { usedPercent: 35, resetsAt: midpointWeek.resetsAt, expectedPct: 41 },
+        10080, now),
+    41
+)
+assert.equal(catalog.weeklyPaceExpectedPercent(null, midpointWeek, 300, now), -1)
+assert.equal(catalog.weeklyPaceExpectedPercent(null, { usedPercent: 35 }, 10080, now), -1)
+assert.equal(catalog.weeklyPaceExpectedPercent(null,
+    { usedPercent: 35, resetsAt: new Date(now - 1000).toISOString() }, 10080, now), -1)
+assert.equal(catalog.weeklyPaceExpectedPercent(null,
+    { usedPercent: 35, resetsAt: new Date(now + 8 * 86400000).toISOString() }, 10080, now), -1)
+assert.equal(catalog.weeklyPaceExpectedPercent(null,
+    { usedPercent: 35, resetsAt: "invalid" }, 10080, now), -1)
+assert.equal(catalog.weeklyPaceExpectedPercent(null,
+    { usedPercent: 35, expectedPct: 20 }, 10080, now), 20)
+assert.equal(catalog.weeklyPaceExpectedPercent(null,
+    { usedPercent: 35, usageKnown: false, expectedPct: 20 }, 10080, now), -1)
+
 const sessionMinutes = catalog.effectiveWindowMinutes(
     sessionExtra, "codex", "extra"
 )

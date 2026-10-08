@@ -273,29 +273,63 @@ function windowBarPercent(w) {
     return windowUsageKnown(w) ? normalizedPercent(w.usedPercent) : 0
 }
 
-// Menu pace line, matching CodexBarCore UsagePace / UsagePaceText. Kimi does
-// not return the CLI's pre-computed `pace` payload, so reproduce that logic
-// from the weekly window without rounding the values used in the projection.
+// The weekly window starts exactly seven days before its reset. Reject
+// expired and implausible timestamps instead of showing a misleading marker.
+function weeklyPaceTiming(win, windowMinutes, nowMs) {
+    if (windowMinutes !== 10080 || !win || !win.resetsAt)
+        return null
+    var resetMs = Date.parse(win.resetsAt)
+    var durationMs = windowMinutes * 60 * 1000
+    var timeUntilReset = resetMs - nowMs
+    if (!isFinite(resetMs) || !isFinite(timeUntilReset)
+            || timeUntilReset <= 0 || timeUntilReset > durationMs)
+        return null
+    return {
+        elapsed: durationMs - timeUntilReset,
+        duration: durationMs,
+        timeUntilReset: timeUntilReset
+    }
+}
+
+// Use the same expected-usage target for both the marker and the fallback pace
+// text. Prefer the provider's own calculation when supplied, then the Claude
+// account adapter's expectedPct, and otherwise calculate it from reset time.
+function weeklyPaceExpectedPercent(pace, win, windowMinutes, nowMs) {
+    if (windowMinutes !== 10080 || !windowUsageKnown(win))
+        return -1
+    var timing = weeklyPaceTiming(win, windowMinutes, nowMs)
+    if (win.resetsAt && !timing)
+        return -1
+
+    if (pace && typeof pace.expectedUsedPercent === "number"
+            && isFinite(pace.expectedUsedPercent))
+        return Math.max(0, Math.min(100, pace.expectedUsedPercent))
+    if (typeof win.expectedPct === "number" && isFinite(win.expectedPct))
+        return Math.max(0, Math.min(100, win.expectedPct))
+
+    return timing ? timing.elapsed / timing.duration * 100 : -1
+}
+
+// Menu pace line, matching CodexBarCore UsagePace / UsagePaceText. Providers
+// without a pre-computed pace payload use the same target as the marker.
 function paceLine(pace, win, windowMinutes, nowMs, providerId) {
     if (pace && pace.summary) {
         var parts = pace.summary.split("|").map(function (p) { return p.trim() })
         var keep = parts.filter(function (p) { return p.indexOf("Expected") !== 0 })
         if (keep.length > 0) return "Pace: " + keep.join(" · ")
     }
-    if (windowMinutes !== 10080 || !windowUsageKnown(win) || !win.resetsAt)
+    var timing = weeklyPaceTiming(win, windowMinutes, nowMs)
+    if (!windowUsageKnown(win) || !timing)
         return ""
 
-    var resetMs = Date.parse(win.resetsAt)
-    var durationMs = windowMinutes * 60 * 1000
-    var timeUntilReset = resetMs - nowMs
-    if (isNaN(resetMs) || timeUntilReset <= 0 || timeUntilReset > durationMs)
-        return ""
-
-    var elapsed = Math.max(0, Math.min(durationMs, durationMs - timeUntilReset))
+    var elapsed = timing.elapsed
+    var timeUntilReset = timing.timeUntilReset
     var actual = Math.max(0, Math.min(100, Number(win.usedPercent)))
     if (elapsed === 0 && actual > 0)
         return ""
-    var expected = (elapsed / durationMs) * 100
+    var expected = weeklyPaceExpectedPercent(pace, win, windowMinutes, nowMs)
+    if (expected < 0)
+        return ""
     // CodexBarCore hides pace until enough of the weekly window has elapsed.
     if (expected < 3 && actual < 100)
         return ""

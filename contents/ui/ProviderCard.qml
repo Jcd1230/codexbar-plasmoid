@@ -262,6 +262,10 @@ ColumnLayout {
                 Layout.fillWidth: true
                 percent: Catalog.windowBarPercent(section.modelData.win)
                 fillColor: card.brandColor
+                segmentCount: section.modelData.minutes === 10080 ? 7 : 0
+                markerPercent: Catalog.weeklyPaceExpectedPercent(
+                    section.modelData.pace, section.modelData.win,
+                    section.modelData.minutes, plasmoidRoot.nowMs)
             }
 
             RowLayout {

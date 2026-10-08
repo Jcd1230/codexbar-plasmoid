@@ -179,6 +179,12 @@ ColumnLayout {
                 Layout.fillWidth: true
                 percent: Catalog.windowBarPercent(section.modelData.win)
                 fillColor: card.brandColor
+                segmentCount: section.modelData.minutes === 10080 ? 7 : 0
+                // Stale adapter measurements must not look like current pace.
+                markerPercent: card.lastKnownUsage ? -1
+                    : Catalog.weeklyPaceExpectedPercent(
+                        null, section.modelData.win, section.modelData.minutes,
+                        card.plasmoidRoot.nowMs)
             }
 
             RowLayout {
