@@ -175,6 +175,21 @@ PlasmoidItem {
             + "-" + cliRequestSerial
     }
 
+    // Keep the last successfully parsed provider snapshot available to other
+    // local tools without changing the CodexBar CLI itself. Writes are atomic
+    // and private because usage JSON can include account identity metadata.
+    function cacheUsageJson(providerId, json, generation) {
+        var cacheDir = '"$HOME"/.cache/codexbar/' + shellQuote(providerId)
+        var cacheFile = cacheDir + "/usage.json"
+        var tempFile = cacheDir + "/.usage.json.tmp.$$"
+        var command = commandPathPrefix
+            + "umask 077; mkdir -p " + cacheDir
+            + " && printf '%s\\n' " + shellQuote(json) + " > " + tempFile
+            + " && mv -f " + tempFile + " " + cacheFile
+        executable.connectSource(uniqueCliCommand(
+            command, "cache-" + providerId, generation))
+    }
+
     function stopLoadingIndicators() {
         for (var provider in usageData) {
             if (usageData[provider]) {
@@ -577,6 +592,7 @@ PlasmoidItem {
                 d.entries = parsed
                 d.error = ""
                 d.errorCode = ""
+                cacheUsageJson(req.p, trimmed, req.gen)
                 cliState = CliStatus.applyUsageResult(
                     cliState, req.cliGeneration, exitCode, true, false)
             } else {

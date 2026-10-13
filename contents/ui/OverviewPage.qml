@@ -39,6 +39,8 @@ ColumnLayout {
             // the weekly cap in primary and the five-hour cap in secondary.
             readonly property var primaryWin: usage ? Catalog.windowFor(usage, providerId, 300) : null
             readonly property var secondaryWin: usage ? Catalog.windowFor(usage, providerId, 10080) : null
+            readonly property var weeklyPace: d && d.entry && d.entry.pace
+                ? d.entry.pace.secondary : null
 
             Layout.fillWidth: true
             implicitHeight: rowContent.implicitHeight + Kirigami.Units.smallSpacing * 2
@@ -123,9 +125,12 @@ ColumnLayout {
 
                         UsageBar {
                             Layout.fillWidth: true
-                            implicitHeight: 4
                             percent: Catalog.windowBarPercent(overviewRow.secondaryWin)
                             fillColor: overviewRow.meta.color
+                            segmentCount: overviewRow.secondaryWin ? 7 : 0
+                            markerPercent: Catalog.weeklyPaceExpectedPercent(
+                                overviewRow.weeklyPace, overviewRow.secondaryWin,
+                                10080, overview.plasmoidRoot.nowMs)
                             opacity: overviewRow.secondaryWin ? 0.75 : 0.35
                         }
 
