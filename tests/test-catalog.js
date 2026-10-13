@@ -76,6 +76,32 @@ assert.equal(
     ""
 )
 
+// Newer CLI versions can report session pace in primary without weekly pace.
+const codexPace = {
+    primary: {
+        summary: "12% in deficit | Expected 30% used | Runs out in 1h",
+        expectedUsedPercent: 30
+    }
+}
+const primaryPace = catalog.paceForSlot({ pace: codexPace }, "primary")
+assert.equal(primaryPace.summary, codexPace.primary.summary)
+assert.equal(catalog.paceForSlot({ pace: codexPace }, "secondary"), null)
+assert.equal(catalog.paceForSlot({}, "primary"), null)
+assert.equal(
+    catalog.paceLine(primaryPace, sessionExtra, 300, now, "codex"),
+    "Pace: 12% in deficit · Runs out in 1h"
+)
+
+// Early-week deficits still matter even before 3% of the week has elapsed.
+const earlyReset = new Date(now + 6.9 * 86400000).toISOString()
+const earlyDeficit = { usedPercent: 14, resetsAt: earlyReset }
+const earlyOnPace = { usedPercent: 1, resetsAt: earlyReset }
+assert.equal(
+    catalog.paceLine(null, earlyDeficit, 10080, now, "codex"),
+    "Pace: 13% in deficit · Runs out in 14h 45m"
+)
+assert.equal(catalog.paceLine(null, earlyOnPace, 10080, now, "codex"), "")
+
 const resetAt = new Date()
 resetAt.setHours(13, 5, 0, 0)
 const resetDay = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][resetAt.getDay()]
