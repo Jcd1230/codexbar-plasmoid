@@ -145,6 +145,13 @@ Cost scanning is off by default because large local histories can be resource-in
 </details>
 
 <details>
+<summary><b>Usage JSON cache</b></summary>
+<br>
+
+After a provider probe returns valid usage JSON, the widget atomically stores that snapshot at `~/.cache/codexbar/<provider>/usage.json`. Failed or malformed probes leave the previous snapshot untouched. The cache directory and files are created with user-only permissions because provider payloads may include account identity metadata.
+</details>
+
+<details>
 <summary><b>Per-provider data source and CLI environment</b></summary>
 <br>
 
