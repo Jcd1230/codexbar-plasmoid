@@ -66,8 +66,10 @@ ColumnLayout {
                 title: Catalog.windowTitle(minutes, fallback),
                 win: w,
                 minutes: minutes,
-                pace: minutes === 10080 && entry.pace && entry.pace.secondary
-                      ? entry.pace.secondary : null
+                // CodexBar reports pace by CLI window slot. Newer versions
+                // may provide only primary/session pace, so do not assume a
+                // weekly (secondary) pace payload always exists.
+                pace: Catalog.paceForSlot(entry, slot)
             })
         }
         // Kimi's transport slots are inverted. Keep legacy ordering for every

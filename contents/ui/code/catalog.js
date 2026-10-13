@@ -310,6 +310,14 @@ function weeklyPaceExpectedPercent(pace, win, windowMinutes, nowMs) {
     return timing ? timing.elapsed / timing.duration * 100 : -1
 }
 
+// Match the CLI's pace payload to its actual rate-window slot. Some versions
+// report only primary/session pace; weekly gets its own time-based fallback.
+function paceForSlot(entry, slot) {
+    if (!entry || !entry.pace || !entry.pace[slot])
+        return null
+    return entry.pace[slot]
+}
+
 // Menu pace line, matching CodexBarCore UsagePace / UsagePaceText. Providers
 // without a pre-computed pace payload use the same target as the marker.
 function paceLine(pace, win, windowMinutes, nowMs, providerId) {
@@ -330,8 +338,9 @@ function paceLine(pace, win, windowMinutes, nowMs, providerId) {
     var expected = weeklyPaceExpectedPercent(pace, win, windowMinutes, nowMs)
     if (expected < 0)
         return ""
-    // CodexBarCore hides pace until enough of the weekly window has elapsed.
-    if (expected < 3 && actual < 100)
+    // Avoid noisy near-zero pace projections at the start of a week,
+    // but do show a meaningful early deficit rather than hiding it.
+    if (expected < 3 && actual < 100 && actual - expected <= 2)
         return ""
     var delta = actual - expected
     var deltaDisplay = Math.round(Math.abs(delta))
