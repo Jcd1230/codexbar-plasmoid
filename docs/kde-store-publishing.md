@@ -1,12 +1,13 @@
 # KDE Store publishing checklist
 
-This document prepares a manual KDE Store publication. It does not imply that
-CodexBar is already available in the store. Account sign-in, product creation,
-upload, and publication must be performed by the maintainer.
+CodexBar is listed in the KDE Store as
+[CodexBar for KDE Plasma 6](https://store.kde.org/p/2377011) (product 2377011),
+published on 2026-10-03 with 0.6.1. This checklist covers its updates. Account
+sign-in, uploads, and publication must be performed by the maintainer.
 
 ## Listing data
 
-- Category: **Plasma 6 Extensions → Plasma 6 Applets**
+- Category: **Plasma 6 Extensions → Plasma 6 Monitoring**
 - Product title: **CodexBar for KDE Plasma 6**
 - Plugin ID: `com.github.psimaker.codexbar`
 - License: **MIT**
@@ -129,7 +130,11 @@ desktop profile when an isolated Plasma 6 test profile is available.
 > adapter. Theme colors are used throughout for Plasma light and dark themes.
 >
 > CodexBar for KDE Plasma 6 is an independent community port. The widget does
-> not contain provider credentials and does not install external software.
+> not contain provider credentials. It can install or update the CodexBar CLI
+> for the current user, but only when you click “Install CodexBar CLI” or
+> “Update CodexBar CLI” in the widget: it then downloads the official CLI
+> release from GitHub, verifies its SHA-256 checksum, and installs it under
+> `~/.local/share/codexbar-cli` with a link in `~/.local/bin`, without root.
 
 ### Installation note
 
@@ -141,9 +146,10 @@ desktop profile when an isolated Plasma 6 test profile is available.
 ### Dependency note
 
 > Requires the external CodexBar CLI version 0.43.0 or newer. The CLI is not
-> included in the widget. Install it separately, sign in to the provider tools
-> you use, and ensure `codexbar` is on `PATH` or configure its executable path
-> in the widget settings. CLI instructions:
+> included in the widget package: install it with “Install CodexBar CLI” in
+> the widget, or install it yourself and ensure `codexbar` is on `PATH` or
+> configure its executable path in the widget settings. Then sign in to the
+> provider tools you use. CLI instructions:
 > https://github.com/steipete/CodexBar/blob/main/docs/cli.md
 
 ### Changelog template

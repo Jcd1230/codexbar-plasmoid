@@ -82,14 +82,17 @@ MouseArea {
         return lowest
     }
 
+    // The merged meter is as stale as the providers its bars and percentage
+    // come from.
     function staleFor(pid) {
         if (pid !== "__merged__")
             return plasmoidRoot.isStale(pid)
-        for (var i = 0; i < mergedProviders.length; i++) {
-            if (!plasmoidRoot.isStale(mergedProviders[i]))
-                return false
-        }
-        return true
+        var sources = ["session", "weekly"]
+        if (showPercentFor(pid))
+            sources.push(percentSourceFor(pid))
+        return Catalog.mergedStale(mergedProviders, sources,
+            function (p, source) { return plasmoidRoot.panelPick(p, source) },
+            function (p) { return plasmoidRoot.isStale(p) })
     }
 
     // Effective per-icon display: the provider's override wins, else global.
@@ -177,7 +180,7 @@ MouseArea {
             if (pid === "__merged__")
                 plasmoidRoot.manualRefresh()
             else
-                plasmoidRoot.refreshProvider(pid)
+                plasmoidRoot.refreshProvider(pid, true)
         } else if (action === "dashboard" || action === "status") {
             var provider = pid === "__merged__" ? mergedClickProvider() : pid
             var url = provider !== "" ? Catalog.meta(provider)[action] : ""

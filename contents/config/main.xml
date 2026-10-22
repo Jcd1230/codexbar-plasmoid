@@ -17,6 +17,9 @@
         <entry name="configMigrated" type="Bool">
             <default>false</default>
         </entry>
+        <entry name="configWriteError" type="String">
+            <default></default>
+        </entry>
         <entry name="showPercentInPanel" type="Bool">
             <default>false</default>
         </entry>
@@ -55,6 +58,17 @@
         </entry>
         <entry name="showStatus" type="Bool">
             <default>true</default>
+        </entry>
+        <entry name="notifyQuota" type="Bool">
+            <default>false</default>
+        </entry>
+        <entry name="notifyThreshold" type="Int">
+            <default>10</default>
+            <min>1</min>
+            <max>99</max>
+        </entry>
+        <entry name="notifyStatus" type="Bool">
+            <default>false</default>
         </entry>
         <entry name="cliPath" type="String">
             <default></default>

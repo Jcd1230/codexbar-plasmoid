@@ -27,8 +27,13 @@ function usageFailure(exitCode, parseFailed = false) {
 assert.equal(usageFailure(127).code, cli.MISSING)
 assert.equal(usageFailure(124).code, cli.TIMEOUT)
 assert.equal(usageFailure(137).code, cli.TIMEOUT)
-assert.equal(usageFailure(139).code, cli.INCOMPATIBLE)
 assert.equal(usageFailure(0, true).code, cli.UNEXPECTED)
+
+// Processes killed by a crash signal, as sh reports them (128 + signal).
+for (const code of [132, 133, 134, 135, 136, 139])
+    assert.equal(cli.isCrash(code), true, `exit ${code}`)
+for (const code of [0, 1, 2, 64, 124, 127, 137, 143])
+    assert.equal(cli.isCrash(code), false, `exit ${code}`)
 
 assert.equal(cli.parseVersion("CodexBar 0.43.0\n"), "0.43.0")
 assert.equal(cli.parseVersion("codexbar version v0.53.0 (linux)"), "0.53.0")
@@ -73,6 +78,41 @@ const staleResult = cli.applyUsageResult(
 )
 assert.equal(staleResult, current)
 assert.equal(staleResult.code, cli.CHECKING)
+
+// A crash while fetching one provider leaves the CLI usable for the others,
+// whichever result arrives first: polling goes on and no setup card shows.
+function availableState() {
+    const state = checkingState()
+    return cli.applyVersionResult(state, state.generation, 0, "CodexBar 0.70.0")
+}
+function usageResults(state, ...results) {
+    return results.reduce((s, [exitCode, hasUsage]) =>
+        cli.applyUsageResult(s, s.generation, exitCode, hasUsage, false), state)
+}
+for (const crash of [139, 132]) {
+    const orders = {
+        "crash first": usageResults(availableState(), [crash, false], [0, true]),
+        "success first": usageResults(availableState(), [0, true], [crash, false]),
+        "crash only": usageResults(availableState(), [crash, false]),
+    }
+    for (const [order, state] of Object.entries(orders)) {
+        assert.equal(state.code, cli.AVAILABLE, `${order}, exit ${crash}`)
+        assert.equal(state.reason, cli.REASON_NONE, `${order}, exit ${crash}`)
+        assert.equal(cli.canRunUsage(state.code), true, `${order}, exit ${crash}`)
+        assert.equal(cli.isSetupRequired(state.code), false, `${order}, exit ${crash}`)
+    }
+}
+// A crash does not hide what other failures say about the CLI.
+assert.equal(usageResults(availableState(), [139, false], [127, false]).code, cli.MISSING)
+assert.equal(usageResults(availableState(), [124, false], [139, false]).code, cli.TIMEOUT)
+// A CLI that crashes on --version is not usable at all.
+for (const crash of [139, 134]) {
+    const state = checkingState()
+    const crashed = cli.applyVersionResult(state, state.generation, crash, "")
+    assert.equal(crashed.code, cli.INCOMPATIBLE)
+    assert.equal(crashed.reason, cli.REASON_CRASHED)
+    assert.equal(cli.canRunUsage(crashed.code), false)
+}
 
 // config.json becomes the provider source from CLI 0.66 on (#25)
 assert.equal(cli.supportsConfigSource("0.66.0"), true)

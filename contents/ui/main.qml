@@ -4,11 +4,14 @@ import org.kde.plasma.plasmoid
 import org.kde.plasma.core as PlasmaCore
 import org.kde.plasma.plasma5support as P5Support
 import org.kde.kirigami as Kirigami
+import org.kde.notification
 import "code/catalog.js" as Catalog
 import "code/claudeAccounts.js" as ClaudeAccounts
 import "code/cliStatus.js" as CliStatus
 import "code/configProviders.js" as ConfigProviders
+import "code/notifications.js" as Notifications
 import "code/providerSources.js" as ProviderSources
+import "code/usageProbes.js" as UsageProbes
 
 PlasmoidItem {
     id: root
@@ -34,6 +37,9 @@ PlasmoidItem {
     }
     property var pendingConfig: ({})
     property var pendingConfigWrite: ({})
+    // Orders the widget's reads and writes of config.json: one write at a
+    // time, the latest Apply wins (ConfigProviders.read and friends).
+    property var configSync: ConfigProviders.syncState()
     // Set while config.json's state is copied into the settings keys.
     property bool mirroringConfig: false
     // A failed one-time migration keeps this session on the widget's own list.
@@ -78,12 +84,16 @@ PlasmoidItem {
             return ""
         return decodeURIComponent(url.substring(7))
     }
-    // Providers whose CLI process died with SIGSEGV are skipped by automatic
-    // refreshes. A manual refresh still retries after the CLI was upgraded.
+    // Providers whose CLI process crashed are skipped by automatic refreshes.
+    // A manual refresh still retries, for example after the CLI was upgraded.
     property var autoRefreshBlocked: ({})
     // per-provider request generation: responses from an older generation
     // (e.g. after a config change re-triggered a refresh) are discarded
     property var requestGen: ({})
+    // One usage probe per provider at a time (UsageProbes).
+    property var probes: UsageProbes.initialState()
+    // What the opt-in notifications last saw per provider (Notifications).
+    property var notificationState: ({})
 
     // Optional schema-v1 claude-swap-compatible adapter state. Normal Claude
     // usage/cost queries remain active for the panel, overview and fallback UI.
@@ -204,6 +214,8 @@ PlasmoidItem {
 
     function startCliCheck() {
         stopLoadingIndicators()
+        // The old check's config.json results are dropped with it.
+        configSync = ConfigProviders.restart(configSync)
         lastCheckedCliExecutable = cliExecutable
         cliState = CliStatus.beginCheck(cliState)
         var generation = cliState.generation
@@ -383,7 +395,7 @@ PlasmoidItem {
         if (!ts)
             return true
         var maxAge = Math.max(1, Plasmoid.configuration.refreshIntervalMinutes) * 60000 * 3
-        return (Date.now() - ts) > maxAge
+        return (nowMs - ts) > maxAge
     }
 
     function keyProviderIds() {
@@ -399,11 +411,15 @@ PlasmoidItem {
 
     function refreshAll(force) {
         // Read config.json first so changes made with the CLI or the app
-        // show up; the probes follow once it is read.
+        // show up; the probes follow once it is read. While a write runs,
+        // the read after it does that.
         if (CliStatus.canRunUsage(cliState.code)
                 && CliStatus.supportsConfigSource(cliState.detectedVersion)
                 && !configMigrationFailed) {
-            loadConfig(force)
+            var refresh = ConfigProviders.refresh(configSync, force)
+            configSync = refresh.state
+            if (refresh.read)
+                loadConfig(refresh.read)
             return
         }
         // Leaving config mode (an older CLI) re-runs this through
@@ -423,29 +439,48 @@ PlasmoidItem {
         return true
     }
 
-    function loadConfig(force) {
+    // Reads config.json; token comes from ConfigProviders.refresh or readBack.
+    function loadConfig(token) {
         var command = uniqueCliCommand(commandPathPrefix + environmentFilePrefix()
             + cliInvocation("config providers --json", 30) + "; printf '\\036'; "
             + cliInvocation("config dump --json", 30), "config", cliState.generation)
-        pendingConfig[command] = { force: force === true, cliGeneration: cliState.generation }
+        pendingConfig[command] = { token: token, cliGeneration: cliState.generation }
         executable.connectSource(command)
     }
 
-    // Makes config.json enable exactly the wanted providers, one write after
-    // the other so they cannot race on the file; the config is read (and
-    // probed) again afterwards. Returns false when nothing has to change.
-    function writeConfig(wanted, force, migration) {
-        var steps = ConfigProviders.changes(configProviderList, wanted)
-        if (steps.length === 0)
-            return false
+    // Runs a write from ConfigProviders.request or read: its steps one after
+    // the other, so they cannot race on the file. config.json is read back
+    // (and probed) afterwards.
+    function writeConfig(write) {
         var command = uniqueCliCommand(commandPathPrefix + environmentFilePrefix()
-            + steps.map(function (step) { return cliInvocation("config " + step, 30) }).join(" && "),
+            + write.steps.map(function (step) {
+                return cliInvocation("config " + step + " --json", 30)
+            }).join(" && "),
             "config-write", cliState.generation)
-        pendingConfigWrite[command] = {
-            force: force === true, migration: migration === true, cliGeneration: cliState.generation
-        }
+        pendingConfigWrite[command] = { write: write, cliGeneration: cliState.generation }
         executable.connectSource(command)
-        return true
+    }
+
+    // A selection applied on the settings page goes to config.json.
+    function applyProviderSelection(wanted) {
+        var request = ConfigProviders.request(configSync, configProviderList, wanted, true, false)
+        configSync = request.state
+        if (request.write)
+            writeConfig(request.write)
+    }
+
+    // Why a write to config.json failed, in the CLI's words when it gave some.
+    function configWriteErrorText(exitCode, stdout) {
+        var message = ConfigProviders.writeError(stdout)
+        if (message !== "")
+            return message
+        if (exitCode === 124 || exitCode === 137)
+            return i18n("the CodexBar CLI timed out")
+        if (exitCode === 127)
+            return i18n("the CodexBar CLI was not found")
+        if (CliStatus.isCrash(exitCode))
+            return i18n("the CodexBar CLI crashed")
+        return i18n("the CodexBar CLI failed (exit %1)", exitCode)
     }
 
     // The settings page shows config.json's state: enabledProviders mirrors
@@ -466,7 +501,7 @@ PlasmoidItem {
             for (var i = 0; i < enabledProviders.length; i++) {
                 var provider = enabledProviders[i]
                 if (force === true || !autoRefreshBlocked[provider])
-                    refreshProvider(provider)
+                    refreshProvider(provider, force === true)
             }
         }
         // The account adapter is a separate executable from the codexbar CLI,
@@ -535,22 +570,29 @@ PlasmoidItem {
         }
     }
 
-    function refreshProvider(p) {
+    // fresh: the answer must be fetched after this call (a forced refresh),
+    // so a probe that already runs does not count for it.
+    function refreshProvider(p, fresh) {
         if (!CliStatus.canRunUsage(cliState.code))
             return
         if (!usageData[p])
             usageData[p] = {}
-        var gen = (requestGen[p] || 0) + 1
-        requestGen[p] = gen
         usageData[p].loading = true
         bump()
 
         var cliGeneration = cliState.generation
-        var cmd = uniqueCliCommand(
-            cliCmd("usage --provider " + p + " --json"
-                   + ProviderSources.cliArguments(Plasmoid.configuration.providerSources, p)
-                   + (Plasmoid.configuration.showStatus ? " --status" : "")),
-            "usage-" + p, cliGeneration)
+        var command = cliCmd("usage --provider " + p + " --json"
+                             + ProviderSources.cliArguments(Plasmoid.configuration.providerSources, p)
+                             + (Plasmoid.configuration.showStatus ? " --status" : ""))
+        // While a probe of p runs, this refresh shares its answer, or runs
+        // once it is done when it needs a newer one.
+        var probe = UsageProbes.request(probes, p, command, cliGeneration, fresh === true)
+        probes = probe.state
+        if (!probe.start)
+            return
+        var gen = (requestGen[p] || 0) + 1
+        requestGen[p] = gen
+        var cmd = uniqueCliCommand(command, "usage-" + p, cliGeneration)
         pendingUsage[cmd] = { p: p, gen: gen, cliGeneration: cliGeneration }
         executable.connectSource(cmd)
     }
@@ -559,13 +601,13 @@ PlasmoidItem {
         if (exitCode === 124 || exitCode === 137)
             return i18n("Timed out querying the CodexBar CLI")
         var required = Catalog.meta(p).minCli
-        if (exitCode !== 0 && exitCode !== 127 && exitCode !== 139 && required
+        if (exitCode !== 0 && exitCode !== 127 && !CliStatus.isCrash(exitCode) && required
                 && cliState.detectedVersion !== ""
                 && CliStatus.compareVersions(cliState.detectedVersion, required) < 0)
             return i18n("%1 needs CodexBar CLI %2 or newer (installed: %3)",
                         Catalog.meta(p).name, required, cliState.detectedVersion)
-        if (exitCode === 139)
-            return i18n("CodexBar CLI crashed — update to version %1 or newer, then retry", CliStatus.MINIMUM_VERSION)
+        if (CliStatus.isCrash(exitCode))
+            return i18n("CodexBar CLI crashed while fetching %1 — automatic refreshes skip it until you refresh manually", Catalog.meta(p).name)
         if (exitCode === 127)
             return i18n("CodexBar CLI not found — set the path in the settings")
         if (parseFailed)
@@ -613,23 +655,30 @@ PlasmoidItem {
             var parts = (stdout || "").split("\u001e")
             var list = ConfigProviders.parse(parts[0], parts.length > 1 ? parts[1] : "",
                                              Catalog.cliProviderId)
-            if (list === null) {
-                // config.json could not be read: keep the widget's own list.
+            var read = ConfigProviders.read(configSync, configReq.token, list,
+                                            Plasmoid.configuration.configMigrated, keyProviderIds())
+            configSync = read.state
+            var action = read.action
+            if (action.type === "drop")
+                return
+            if (action.type === "leave") {
+                // config.json could not be read: keep the widget's own list,
+                // and a pending migration waits for a read that works.
                 if (!leaveConfigMode())
-                    probeAll(configReq.force)
+                    probeAll(action.force)
                 return
             }
             for (var n = 0; n < list.length; n++)
                 Catalog.registerName(list[n].id, list[n].name)
             configProviderList = list
-            if (!Plasmoid.configuration.configMigrated) {
-                // Once, the widget's own list becomes config.json's.
-                if (writeConfig(keyProviderIds(), configReq.force, true))
-                    return
+            if (action.migrated)
                 Plasmoid.configuration.configMigrated = true
+            if (action.type === "write") {
+                writeConfig(action)
+                return
             }
             mirrorConfig(list)
-            probeAll(configReq.force)
+            probeAll(action.force)
             return
         }
 
@@ -638,19 +687,24 @@ PlasmoidItem {
             delete pendingConfigWrite[source]
             if (writeReq.cliGeneration !== cliState.generation)
                 return
-            if (exitCode !== 0 && writeReq.migration) {
+            // Shown in the popup and on the Providers page until a write
+            // works or it is dismissed.
+            var writeError = exitCode === 0 ? "" : configWriteErrorText(exitCode, stdout)
+            if (Plasmoid.configuration.configWriteError !== writeError)
+                Plasmoid.configuration.configWriteError = writeError
+            if (writeError !== "" && writeReq.write.migration) {
                 // Keep the widget's own list rather than losing it.
-                console.warn("codexbar: moving the provider list to config.json failed, exit", exitCode)
+                console.warn("codexbar: moving the provider list to config.json failed:", writeError)
                 configMigrationFailed = true
+                var abandoned = ConfigProviders.abandon(configSync, writeReq.write)
+                configSync = abandoned.state
                 if (!leaveConfigMode())
-                    probeAll(writeReq.force)
+                    probeAll(abandoned.force)
                 return
             }
-            if (exitCode !== 0)
-                console.warn("codexbar: config write failed, exit", exitCode)
-            else if (writeReq.migration)
-                Plasmoid.configuration.configMigrated = true
-            loadConfig(writeReq.force)
+            if (writeError !== "")
+                console.warn("codexbar: config write failed:", writeError)
+            loadConfig(ConfigProviders.readBack(configSync, writeReq.write))
             return
         }
 
@@ -708,7 +762,7 @@ PlasmoidItem {
             // Switching affects both the adapter projection and the ambient
             // Claude snapshot used by panel/overview/status/cost UI.
             if (enabledProviders.indexOf("claude") >= 0)
-                refreshProvider("claude")
+                refreshProvider("claude", true)
             refreshClaudeAccounts()
             return
         }
@@ -716,7 +770,18 @@ PlasmoidItem {
         var req = pendingUsage[source]
         if (req !== undefined) {
             delete pendingUsage[source]
-            if (requestGen[req.p] !== req.gen
+            var probe = UsageProbes.finish(probes, req.p, req.cliGeneration)
+            probes = probe.state
+            if (probe.rerun) {
+                // A refresh with another command waited for this probe; it
+                // shows loading again only if it can run.
+                if (usageData[req.p])
+                    usageData[req.p].loading = false
+                refreshProvider(req.p, true)
+                bump()
+                return
+            }
+            if (!probe.accept || requestGen[req.p] !== req.gen
                     || req.cliGeneration !== cliState.generation)
                 return // stale response from an older refresh
             var d = usageData[req.p]
@@ -725,7 +790,7 @@ PlasmoidItem {
             d.loading = false
             d.fetchedAt = Date.now()
 
-            if (exitCode === 139)
+            if (CliStatus.isCrash(exitCode))
                 autoRefreshBlocked[req.p] = true
             else
                 delete autoRefreshBlocked[req.p]
@@ -739,6 +804,7 @@ PlasmoidItem {
             // An unknown --provider name makes the CLI report the providers
             // enabled in its own config; only this provider's entries count.
             var entries = Catalog.entriesForProvider(parsed, req.p)
+            var cliError = Catalog.errorForProvider(parsed, req.p)
             if (entries.length > 0 && entries[0].usage) {
                 d.entry = entries[0]
                 d.entries = entries
@@ -746,6 +812,11 @@ PlasmoidItem {
                 d.errorCode = ""
                 cliState = CliStatus.applyUsageResult(
                     cliState, req.cliGeneration, exitCode, true, false)
+            } else if (cliError !== "") {
+                // The CLI explains the failure itself, such as a missing
+                // login or a config.json it cannot decode, so it works.
+                d.error = cliError
+                d.errorCode = ""
             } else if (entries.length === 0 && Array.isArray(parsed) && parsed.length > 0) {
                 // The CLI itself works, so its state stays as it is.
                 delete d.entry
@@ -758,6 +829,7 @@ PlasmoidItem {
                 cliState = CliStatus.applyUsageResult(
                     cliState, req.cliGeneration, exitCode, false, parseFailed)
             }
+            notifyChanges(req.p)
             bump()
             return
         }
@@ -785,6 +857,63 @@ PlasmoidItem {
         }
     }
 
+    // ---- notifications ----
+    // A provider's latest answer as the notification rules read it: failed
+    // without usage, with an error, or with more than one account.
+    function notificationRow(p) {
+        var d = usageData[p]
+        if (!d || d.error || !d.entry || !d.entry.usage || (d.entries && d.entries.length > 1))
+            return { failed: true }
+        var status = d.entry.status || {}
+        return {
+            failed: false,
+            windows: Catalog.notificationWindows(d.entry.usage, p),
+            statusLevel: typeof status.indicator === "string" ? status.indicator : "",
+            statusText: typeof status.description === "string" ? status.description : ""
+        }
+    }
+
+    function notifyChanges(p) {
+        var row = notificationRow(p)
+        var result = Notifications.transition(notificationState, p, row, {
+            threshold: Plasmoid.configuration.notifyThreshold,
+            quota: Plasmoid.configuration.notifyQuota,
+            status: Plasmoid.configuration.notifyStatus
+        })
+        notificationState = result.state
+        for (var i = 0; i < result.events.length; i++)
+            sendNotification(result.events[i], row)
+    }
+
+    function notificationText(event, row) {
+        if (event.kind === "low")
+            return i18n("%1: %2% left", event.label, event.remaining)
+        if (event.kind === "reset")
+            return i18n("%1 was reset: %2% left", event.label, event.remaining)
+        if (event.level === "none")
+            return i18n("The service has recovered.")
+        return row.statusText !== "" ? row.statusText : i18n("Service status: %1", event.level)
+    }
+
+    function sendNotification(event, row) {
+        var notification = notificationComponent.createObject(root, {
+            title: Catalog.meta(event.provider).name,
+            text: notificationText(event, row)
+        })
+        if (notification)
+            notification.sendEvent()
+    }
+
+    Component {
+        id: notificationComponent
+        Notification {
+            componentName: "plasma_workspace"
+            eventId: "notification"
+            iconName: Plasmoid.icon
+            autoDelete: true
+        }
+    }
+
     // the window behind a panel percentage and its remaining percent, or null
     function panelPick(p, source) {
         rev
@@ -808,7 +937,7 @@ PlasmoidItem {
         if (d.error && d.error.length > 0)
             return true
         var maxAge = Math.max(1, Plasmoid.configuration.refreshIntervalMinutes) * 60000 * 3
-        return (Date.now() - d.fetchedAt) > maxAge
+        return (nowMs - d.fetchedAt) > maxAge
     }
 
     P5Support.DataSource {
@@ -824,14 +953,12 @@ PlasmoidItem {
     }
 
     Timer {
-        // drives "Resets in …" countdowns and staleness
+        // Drives "Resets in …" countdowns, staleness and today's cost, which
+        // read nowMs. The data revision stays, so cards are not rebuilt.
         interval: 30000
         running: true
         repeat: true
-        onTriggered: {
-            root.nowMs = Date.now()
-            root.bump()
-        }
+        onTriggered: root.nowMs = Date.now()
     }
 
     Timer {
@@ -893,7 +1020,7 @@ PlasmoidItem {
             // A new selection from the settings page goes to config.json;
             // copying config.json's state back into the key does not.
             if (root.componentReady && root.configMode && !root.mirroringConfig)
-                root.writeConfig(root.keyProviderIds(), true, false)
+                root.applyProviderSelection(root.keyProviderIds())
         }
         function onProviderOverridesChanged() {
             // Overrides only change how the panel draws; no re-probe needed.
@@ -915,7 +1042,9 @@ PlasmoidItem {
             currentTab = defaultTab()
         deferAutomaticCostScans()
         // In config mode every read of config.json is followed by probes.
-        if (!configMode)
+        // Before the component is ready the CLI check is still to come, and
+        // it refreshes everything once it knows the CLI.
+        if (componentReady && !configMode)
             refreshAll(true)
     }
 

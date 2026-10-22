@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="docs/screenshots/codexbar-plasma.png" width="360" alt="CodexBar widget in a KDE Plasma panel with the popup open">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/overview.png">
+  <img src="docs/screenshots/overview-light.png" width="372" alt="CodexBar overview with Codex, Claude and Antigravity session and weekly quotas">
+</picture>
 
 # CodexBar for KDE Plasma 6
 
@@ -10,6 +13,7 @@ A faithful KDE Plasma port of [CodexBar](https://github.com/steipete/CodexBar), 
 Codex, Claude, Cursor, Copilot, Gemini and 80+ more providers, driven by the official CodexBar CLI.
 
 [![Release](https://img.shields.io/github/v/release/psimaker/codexbar-plasmoid?style=flat-square&color=1d99f3)](https://github.com/psimaker/codexbar-plasmoid/releases/latest)
+[![KDE Store](https://img.shields.io/badge/dynamic/xml?url=https%3A%2F%2Fapi.kde-look.org%2Focs%2Fv1%2Fcontent%2Fdata%2F2377011&query=%2F%2Fcontent%2Fversion&label=KDE%20Store&style=flat-square&color=1d99f3&logo=kde&logoColor=white)](https://store.kde.org/p/2377011)
 [![CI](https://img.shields.io/github/actions/workflow/status/psimaker/codexbar-plasmoid/package-plasmoid.yml?branch=main&style=flat-square&label=CI)](https://github.com/psimaker/codexbar-plasmoid/actions/workflows/package-plasmoid.yml)
 [![KDE Plasma 6](https://img.shields.io/badge/KDE_Plasma-6-1d99f3?style=flat-square&logo=kde&logoColor=white)](https://kde.org/plasma-desktop/)
 [![CodexBar CLI](https://img.shields.io/badge/CodexBar_CLI-%E2%89%A5%200.43-49a3b0?style=flat-square)](https://github.com/steipete/CodexBar/blob/main/docs/cli.md)
@@ -33,33 +37,35 @@ Then right-click your panel → **Add Widgets…** → search **CodexBar**. That
 | 🖥️ **CLI** | Downloads the official CodexBar CLI build for your CPU (`x86_64` / `aarch64`), verifies the checksum and links it as `~/.local/bin/codexbar`. |
 | 🔒 **Safe** | User-local only, no root, nothing outside `~/.local`. Re-run it any time to update both. |
 
+**Or from the KDE Store:** right-click your panel → **Add Widgets…** → **Get New Widgets** → **Download New Plasma Widgets…**, search for **CodexBar** and install it ([store page](https://store.kde.org/p/2377011)). The store has the widget only; when the CLI is missing, the popup offers to install it.
+
 > [!TIP]
 > Already have the widget? It installs and updates the CLI by itself: the popup shows an **Install CodexBar CLI** button when the CLI is missing or too old, and **About CodexBar** offers **Update CodexBar CLI to the latest release**.
 
-Options: `--widget-only`, `--cli-only`, `--version v0.5.0`. The scripts are plain POSIX `sh`, so read them first if you like: [`scripts/install.sh`](scripts/install.sh) and [`contents/scripts/install-cli.sh`](contents/scripts/install-cli.sh). Manual and package-manager routes are [below](#other-ways-to-install).
+Options: `--widget-only`, `--cli-only`, `--version v0.6.1`. The scripts are plain POSIX `sh`, so read them first if you like: [`scripts/install.sh`](scripts/install.sh) and [`contents/scripts/install-cli.sh`](contents/scripts/install-cli.sh). Manual and package-manager routes are [below](#other-ways-to-install).
 
 ## ✨ Features
 
 - **Panel icon in the original look.** Two meter capsules (session on top, weekly below), fill = remaining quota, dimmed when data is stale. One merged icon showing the worst case across providers by default, or one icon per provider with the original "critter" faces for Codex and Claude. Optional percentage label, optionally with the time until that window resets (`40% · 3h 50m`), or provider logos instead of meters. **Usage bars fill** in the General settings switches every meter and bar between remaining quota (default, as in CodexBar) and used quota. Per-provider overrides let single providers look different from the rest.
 - **Popup like the original menu.** Provider switcher tabs with brand-colored quota bars, an overview page, and per provider: session / weekly / extra rate windows ("Codex Spark", model-scoped weekly caps, …) with progress bars, reset countdowns and a pace line, Codex reset credits, local cost (today / last 30 days via `codexbar cost`), provider status, account info, and the CLI's detail rows (balances, monthly spend, credit pools, …).
 - **Actions.** Refresh, cost-history refresh, Usage Dashboard, Status Page, Settings, About. A middle or double click on a panel icon can refresh, open the usage dashboard or status page, or run a command such as `konsole -e codex`, globally or per provider.
-- **87 providers.** Everything the CodexBar CLI supports, enable only what you use.
+- **Notifications, opt-in.** A Plasma notification when a quota drops below a threshold (10 % left by default) or is reset, and optionally when a provider's status changes. Like upstream's Linux app, only changes seen while the widget runs count, never what it finds on start.
+- **90 providers.** Everything the CodexBar CLI supports, enable only what you use.
 - **Optional Claude multi-account view.** Stacked 5-hour and 7-day cards per account with explicit switching through a schema-v1 [`claude-swap`](https://github.com/realiti4/claude-swap) adapter.
 
 <div align="center">
-<img src="docs/screenshots/panel-display-mode-settings.png" width="520" alt="Panel display settings: meters, provider logos, or both">
+<a href="docs/screenshots/README.md"><img src="docs/screenshots/panel-modes.png" width="512" alt="CodexBar at normal panel size: merged meter, per-provider meters with Codex and Claude critters, and logos with percentages and reset countdowns"></a>
 <br>
-<img src="docs/screenshots/provider-logos-horizontal.png" alt="Provider logos in a horizontal panel">&nbsp;&nbsp;
-<img src="docs/screenshots/provider-logos-vertical.png" height="120" alt="Provider logos in a vertical panel">
+<a href="docs/screenshots/README.md">Provider detail, settings, and CLI setup screenshots</a>
 </div>
 
 <details>
-<summary><b>All 87 supported providers</b></summary>
+<summary><b>All 90 supported providers</b></summary>
 <br>
 
-Codex · OpenAI · Azure OpenAI · Claude · ClinePass · Cursor · OpenCode · OpenCode Go · Alibaba Coding Plan · Alibaba Token Plan · Qwen Cloud · Droid · Fireworks · Gemini · Antigravity · Copilot · Devin · z.ai / GLM · MiniMax · Manus · Kimi Code · Kilo · Kiro · Vertex AI · Augment · JetBrains AI · Moonshot / Kimi Open Platform · Amp · T3 Chat · Ollama · Synthetic · OpenRouter · ElevenLabs · Warp · Windsurf · Zed · Perplexity · Xiaomi MiMo · Doubao · Sakana AI · Abacus AI · Mistral · DeepSeek · DeepInfra · Codebuff · Venice · Command Code · Qoder · StepFun · AWS Bedrock · Grok · Groq · LLM Proxy · LiteLLM · Bifrost · Aixy · Deepgram · Poe · Chutes · Neuralwatt · Helmcode · ClawRouter · LongCat · sub2api · Wayfinder · ZenMux · ai& · ZoomMate · xAI · Notion AI · IBM Bob · Nous Portal · Muse Code · CodeRabbit · Replicate · Hugging Face · Raycast · Pi · v0 · TypeSafe · Charm Hyper · GitKraken AI · DevPass · Atlas Cloud · Vercel AI Gateway · llmman · xKiro
+Codex · OpenAI · Azure OpenAI · Claude · ClinePass · Cursor · OpenCode · OpenCode Go · Alibaba Coding Plan · Alibaba Token Plan · Qwen Cloud · Droid · Fireworks · Gemini · Antigravity · Copilot · Devin · z.ai / GLM · MiniMax · Manus · Kimi Code · Kilo · Kiro · Vertex AI · Augment · JetBrains AI · Moonshot / Kimi Open Platform · Amp · T3 Chat · Ollama · Synthetic · OpenRouter · ElevenLabs · Warp · Windsurf · Zed · Perplexity · Xiaomi MiMo · Doubao · Sakana AI · Abacus AI · Mistral · DeepSeek · DeepInfra · Codebuff · Venice · Command Code · Qoder · StepFun · AWS Bedrock · Grok · Groq · LLM Proxy · LiteLLM · Bifrost · Aixy · Deepgram · Poe · Chutes · Neuralwatt · Helmcode · ClawRouter · LongCat · sub2api · Wayfinder · ZenMux · ai& · ZoomMate · xAI · Notion AI · IBM Bob · Nous Portal · Muse Code · CodeRabbit · Replicate · Hugging Face · Raycast · Pi · v0 · TypeSafe · Charm Hyper · GitKraken AI · DevPass · Atlas Cloud · Vercel AI Gateway · llmman · xKiro · Muse (muse.ai) · LithosAI · WorkBuddy
 
-Provider logins are handled by the provider tools themselves (Claude Code, Codex CLI, API keys in CodexBar's config, …); the widget only reads what the CLI reports. Some newer providers need a recent CLI, which the widget tells you when a probe fails.
+Provider logins are handled by the provider tools themselves (Claude Code, Codex CLI, API keys in CodexBar's config, …); the widget only reads what the CLI reports. When a probe fails, the provider's card shows the CLI's own message, for example that a login is missing. Some newer providers need a recent CLI, which the widget tells you as well.
 </details>
 
 ## 📋 Requirements
@@ -98,8 +104,6 @@ sha256sum -c com.github.psimaker.codexbar-<version>.plasmoid.sha256
 ```
 
 An updated widget takes effect after Plasma reloads it (log out and in, or `systemctl --user restart plasma-plasmashell.service`).
-
-A KDE Store listing is planned but not published yet; until then use the release package.
 </details>
 
 <details>
@@ -150,7 +154,9 @@ Cost scanning is off by default because large local histories can be resource-in
 <summary><b>Providers and CodexBar's config.json</b></summary>
 <br>
 
-With CodexBar CLI 0.66 or newer, the provider list and which providers are enabled come from CodexBar's own `~/.config/codexbar/config.json`, which the CLI and the macOS app share. Providers enabled with `codexbar config enable` show up in the widget, providers from user plugins included, and ticking a provider on the **Providers** page writes the change back with `codexbar config enable` / `disable` when you click **Apply**. The first start with such a CLI copies the widget's previous selection into config.json once. Older CLIs keep the widget's own list.
+With CodexBar CLI 0.66 or newer, the provider list and which providers are enabled come from CodexBar's own `~/.config/codexbar/config.json`, which the CLI and the macOS app share. Providers enabled with `codexbar config enable` show up in the widget, providers from user plugins included, and ticking a provider on the **Providers** page writes the change back with `codexbar config enable` / `disable` when you click **Apply**. Changes are written one after the other, so the last Apply wins. While the page is open, it follows config.json: a provider you enable with the CLI meanwhile shows up ticked and stays enabled when you click **OK**. If a change cannot be written, for example because config.json is read-only, the popup and the **Providers** page show the CLI's error until a later change is written or you dismiss it in the popup. Older CLIs keep the widget's own list.
+
+The first start with such a CLI moves the widget's previous selection to config.json only while config.json still has CodexBar's default selection (Codex alone, as of CodexBar 0.72): the widget's providers are enabled there in addition, and none is disabled. A config.json you have changed wins as it is, and nothing is written to it. Every further widget follows the same rule, so it only adds its selection while config.json is still at the default; a config.json you set back to Codex alone on purpose looks just like an untouched one. If the CLI cannot read config.json, for example because it is not valid JSON, the widget keeps its own list, shows the CLI's error on the provider cards and tries again on the next refresh.
 
 Each provider is still probed in its own `codexbar usage --provider …` process: the CLI fetches providers one after another when asked for all of them, so separate processes keep refreshes fast and one slow provider from holding up the rest.
 </details>
@@ -170,7 +176,7 @@ Each provider is still probed in its own `codexbar usage --provider …` process
 
 **Overrides.** The settings button next to a provider on the **Providers** settings page opens its panel overrides: panel display mode, percentage visibility / window / style, the time until reset, critters, and the middle / double click actions with their command. Tick a row to override the General setting for that provider only; unticked rows keep following the General page, so later changes there still reach every provider that has not overridden them. Percentage window and style can only be ticked while the percentage is shown for that provider. Only ticked rows are stored, as JSON in the `providerOverrides` key. Like every other setting, nothing is saved until you click **Apply** or **OK** on the settings page.
 
-**Resetting.** A provider with overrides has a highlighted settings button. **Reset to global** in its dialog unticks every row; click **OK** to keep that, or **Cancel** to leave the provider as it was. Next to the settings button, an enabled globe button resets that provider to the General settings after asking first. It also works for disabled providers, whose settings button is greyed out. When any provider has overrides, an info bar above the list says how many and offers **Reset All…**, which lists every affected provider before clearing them. Both resets only stage the change until you click **Apply** or **OK**.
+**Resetting.** A provider with overrides has a highlighted settings button. **Reset to global** in its dialog unticks every row; click **OK** to keep that, or **Cancel** to leave the provider as it was. Next to the settings button, an enabled reset button resets that provider to the General settings after asking first. It also works for disabled providers, whose settings button is greyed out. When any provider has overrides, an info bar above the list says how many and offers **Reset All…**, which lists every affected provider before clearing them. Both resets only stage the change until you click **Apply** or **OK**.
 
 **Panel layout.** In the default merged-meter layout, a provider with any ticked override gets its own icon next to the merged meter, even when the value matches the General page, and the merged meter only aggregates the providers that still follow the defaults. With provider logos or one meter per provider, every provider already has its own icon and simply uses its own settings. Clicking a provider's icon opens its page in the popup; clicking the merged meter opens or closes the popup on the page you viewed last.
 
@@ -208,7 +214,7 @@ The CodexBar CLI remains required: normal Claude usage continues to power the pa
 <summary><b>Not ported (macOS-only upstream features)</b></summary>
 <br>
 
-Menu bar animations (blink/wiggle), WidgetKit widgets, notifications, cost-history and detail-section charts, and the "Add Account" flow. Logins are handled by the provider CLIs themselves.
+Menu bar animations (blink/wiggle), WidgetKit widgets, cost-history and detail-section charts, and the "Add Account" flow. Logins are handled by the provider CLIs themselves.
 </details>
 
 ## 🙏 Credits & license

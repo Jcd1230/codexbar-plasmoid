@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import org.kde.plasma.plasmoid
 import org.kde.plasma.components as PlasmaComponents3
 import org.kde.kirigami as Kirigami
 import "code/cliStatus.js" as CliStatus
@@ -35,7 +36,7 @@ ColumnLayout {
             }
 
             PlasmaComponents3.Label {
-                text: i18n("Plasma port, v0.5.0 — data via codexbar CLI")
+                text: i18n("Plasma port, v%1 — data via codexbar CLI", Plasmoid.metaData.version)
                 opacity: 0.6
                 font: Kirigami.Theme.smallFont
             }

@@ -6,7 +6,7 @@
 .pragma library
 
 var PROVIDERS = {
-    // Order follows `codexbar usage --help` (CodexBar 0.70.0).
+    // Order follows `codexbar usage --help` (CodexBar 0.72.0).
     "codex":        { name: "Codex",              color: "#49A3B0", dashboard: "https://chatgpt.com/codex/cloud/settings/analytics#usage", status: "https://status.openai.com/", icon: "ProviderIcon-codex.svg", critter: "codex" },
     "openai":       { name: "OpenAI",             color: "#0F826E", dashboard: "https://platform.openai.com/usage", status: "https://status.openai.com", icon: "ProviderIcon-codex.svg" },
     "azure-openai": { name: "Azure OpenAI",       color: "#0078D4", dashboard: "https://ai.azure.com", status: "https://azure.status.microsoft/en-us/status", icon: "ProviderIcon-codex.svg" },
@@ -93,7 +93,10 @@ var PROVIDERS = {
     "atlascloud":   { name: "Atlas Cloud",        color: "#5975F5", dashboard: "https://www.atlascloud.ai/console", status: "", icon: "ProviderIcon-atlascloud.svg", minCli: "0.66.0" },
     "vercel":       { name: "Vercel AI Gateway",  color: "#FFFFFF", chipColor: "#000000", dashboard: "https://vercel.com/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway", status: "", icon: "ProviderIcon-vercel.svg", minCli: "0.66.0" },
     "llmman":       { name: "llmman",             color: "#6CC5B0", dashboard: "", status: "", icon: "ProviderIcon-llmman.svg", minCli: "0.66.0" },
-    "xkiro":        { name: "xKiro",              color: "#52C99B", dashboard: "https://xkiro.com", status: "", icon: "ProviderIcon-xkiro.svg", minCli: "0.67.0" }
+    "xkiro":        { name: "xKiro",              color: "#52C99B", dashboard: "https://xkiro.com", status: "", icon: "ProviderIcon-xkiro.svg", minCli: "0.67.0" },
+    "museai":       { name: "Muse (muse.ai)",     color: "#0668E1", dashboard: "https://muse.ai/?settings_tab=general", status: "", icon: "ProviderIcon-museai.svg", minCli: "0.71.0" },
+    "lithosai":     { name: "LithosAI",           color: "#6B7280", dashboard: "https://console.lithosai.cloud", status: "", icon: "ProviderIcon-lithosai.svg", minCli: "0.71.0" },
+    "workbuddy":    { name: "WorkBuddy",          color: "#0DC8A6", dashboard: "https://www.workbuddy.cn/profile/plans-usage", status: "", icon: "ProviderIcon-workbuddy.svg", minCli: "0.72.0" }
 }
 
 // Providers whose local logs the `codexbar cost` command can price.
@@ -166,6 +169,20 @@ function entriesForProvider(entries, id) {
     })
 }
 
+// The CLI's own explanation when a usage request fails: the message of the
+// provider's error entry, such as a missing login, or of the "cli" entry the
+// CLI answers with when it cannot run at all, for example while config.json
+// cannot be decoded. Empty when the response holds neither.
+function errorForProvider(entries, id) {
+    var candidates = entriesForProvider(entries, id).concat(entriesForProvider(entries, "cli"))
+    for (var i = 0; i < candidates.length; i++) {
+        var error = candidates[i].error
+        if (error && typeof error.message === "string" && error.message.trim() !== "")
+            return error.message.trim()
+    }
+    return ""
+}
+
 // --- formatting helpers (mirror CodexBar's UsageFormatter) ---
 
 function compactTokens(n) {
@@ -189,6 +206,61 @@ function compactTokens(n) {
 function money(v) {
     if (v === undefined || v === null) return ""
     return "$ " + v.toFixed(2)
+}
+
+function finite(v) {
+    return typeof v === "number" && isFinite(v)
+}
+
+// An amount in a cost snapshot's currency: dollars like money(), anything
+// else (Codex's "Credits") with its code after the number.
+function amountText(amount, currencyCode) {
+    if (!finite(amount))
+        return ""
+    if (!currencyCode || currencyCode === "USD")
+        return money(amount)
+    return amount.toFixed(2) + " " + currencyCode
+}
+
+// Balances a card lists from usage.providerCost, as upstream's per-provider
+// cost presentation names them: [{ label, amount, currencyCode }]. A
+// balance of zero is listed, a missing one is not.
+function costBalances(providerId, cost) {
+    if (!cost || typeof cost !== "object")
+        return []
+    function one(label, amount) {
+        return finite(amount) ? [{ label: label, amount: amount, currencyCode: cost.currencyCode }] : []
+    }
+    switch (providerId) {
+    case "claude":
+        return one("Extra usage balance", cost.balance)
+    case "codex":
+        return cost.currencyCode === "Credits" ? one("Extra usage balance", cost.balance) : []
+    case "devin":
+        return cost.period === "Extra usage balance" ? one("Extra usage", cost.used) : []
+    case "litellm":
+        return finite(cost.limit) && cost.limit <= 0 ? one(cost.period || "Spend", cost.used) : []
+    default:
+        return one("Balance", cost.balance)
+    }
+}
+
+// Whether a card without a usable primary window shows the generic
+// "Cost: used / limit" line; balance-only snapshots do not.
+function showsCostFallback(providerId, cost) {
+    if (!cost || typeof cost !== "object")
+        return false
+    var empty = cost.used === 0 && cost.limit === 0
+    switch (providerId) {
+    case "codex":
+        return cost.currencyCode !== "Credits" || !empty
+    case "devin":
+        return cost.period !== "Extra usage balance"
+    case "litellm":
+        return !(finite(cost.limit) && cost.limit <= 0)
+    default:
+        return !(empty && finite(cost.balance))
+    }
 }
 
 // "Resets in 3h 53m" / "Resets in 3d 20h" — like the original menu rows.
@@ -318,8 +390,11 @@ function antigravityWindowFor(usage, wantedMinutes) {
     return best
 }
 
+// Usage is known when a window reports a finite usedPercent and does not
+// say otherwise; null, NaN or a string are no reading.
 function windowUsageKnown(w) {
-    return w && w.usageKnown !== false && w.usedPercent !== undefined
+    return !!w && w.usageKnown !== false && typeof w.usedPercent === "number"
+        && isFinite(w.usedPercent)
 }
 
 // Time until the reset of the window behind a panel percentage ("3h 50m"),
@@ -337,10 +412,14 @@ function remainingPick(w) {
     return windowUsageKnown(w) ? { window: w, remaining: 100 - normalizedPercent(w.usedPercent) } : null
 }
 
+function isMonthly(minutes) {
+    return minutes >= 40000 && minutes <= 46000
+}
+
 // The window behind a panel percentage and its remaining percent, or null.
 // source is "session" or "weekly" (each falls back to the other) or "lowest",
-// which also weighs usable extra windows such as model-scoped weekly limits,
-// since any of them can run out first.
+// which also weighs monthly windows and usable extra windows such as
+// model-scoped weekly limits, since any of them can run out first.
 function panelWindow(usage, providerId, source) {
     if (!usage)
         return null
@@ -351,6 +430,12 @@ function panelWindow(usage, providerId, source) {
     if (source !== "lowest")
         return session || weekly
     var picks = [session, weekly]
+    var slots = ["primary", "secondary", "tertiary"]
+    for (var s = 0; s < slots.length; s++) {
+        var w = usableWindow(usage[slots[s]])
+        if (w && isMonthly(effectiveWindowMinutes(w, providerId, slots[s])))
+            picks.push(remainingPick(w))
+    }
     var extras = usage.extraRateWindows || []
     for (var i = 0; i < extras.length; i++)
         picks.push(remainingPick(namedWindow(extras[i])))
@@ -438,8 +523,33 @@ function paceLine(pace, win, windowMinutes, nowMs, providerId) {
 function windowTitle(windowMinutes, fallback) {
     if (windowMinutes === 300) return "Session"
     if (windowMinutes === 10080) return "Weekly"
-    if (windowMinutes >= 40000 && windowMinutes <= 46000) return "Monthly"
+    if (isMonthly(windowMinutes)) return "Monthly"
     return fallback
+}
+
+// Whether the merged panel meter is stale. It shows, for each of `sources`,
+// the lowest remaining value of the merged providers, so it is stale when
+// one of those values comes from a stale provider, and without any value
+// when every provider is stale. pickOf(provider, source) is the provider's
+// panel pick, staleOf(provider) its staleness.
+function mergedStale(providers, sources, pickOf, staleOf) {
+    var shown = []
+    for (var s = 0; s < sources.length; s++) {
+        var lowest = null
+        var provider = ""
+        for (var i = 0; i < providers.length; i++) {
+            var pick = pickOf(providers[i], sources[s])
+            if (pick && (lowest === null || pick.remaining < lowest.remaining)) {
+                lowest = pick
+                provider = providers[i]
+            }
+        }
+        if (provider !== "" && shown.indexOf(provider) < 0)
+            shown.push(provider)
+    }
+    if (shown.length > 0)
+        return shown.some(function (p) { return staleOf(p) })
+    return providers.every(function (p) { return staleOf(p) })
 }
 
 // Rate-window slots the provider card lists. With an Antigravity quota
@@ -461,6 +571,39 @@ function slotTitle(providerId, slot, windowMinutes) {
     var fallback = slot === "primary" ? "Session"
                  : slot === "secondary" ? "Weekly" : "Monthly"
     return windowTitle(windowMinutes, fallback)
+}
+
+// The windows notifications watch, as the card lists them: [{ key, label,
+// remaining, resetsAt }] for every window with a known reading.
+function notificationWindows(usage, providerId) {
+    var out = []
+    if (!usage)
+        return out
+    var slots = cardSlots(usage, providerId)
+    for (var i = 0; i < slots.length; i++) {
+        var w = usableWindow(usage[slots[i]])
+        if (!windowUsageKnown(w))
+            continue
+        out.push({
+            key: slots[i],
+            label: slotTitle(providerId, slots[i], effectiveWindowMinutes(w, providerId, slots[i])),
+            remaining: 100 - normalizedPercent(w.usedPercent),
+            resetsAt: typeof w.resetsAt === "string" ? w.resetsAt : ""
+        })
+    }
+    var extras = usage.extraRateWindows || []
+    for (var j = 0; j < extras.length; j++) {
+        var ew = namedWindow(extras[j])
+        if (!windowUsageKnown(ew))
+            continue
+        out.push({
+            key: "extra:" + (extras[j].id || extras[j].title || j),
+            label: extras[j].title || "Extra",
+            remaining: 100 - normalizedPercent(ew.usedPercent),
+            resetsAt: typeof ew.resetsAt === "string" ? ew.resetsAt : ""
+        })
+    }
+    return out
 }
 
 // Plan text like the original card's top-right label

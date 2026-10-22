@@ -304,6 +304,23 @@ Item {
 
             Item { Layout.preferredHeight: Kirigami.Units.smallSpacing }
 
+            // A provider selection the widget could not write to config.json,
+            // until a later write works or it is dismissed here.
+            Kirigami.InlineMessage {
+                Layout.fillWidth: true
+                Layout.preferredHeight: contentItem.implicitHeight + topPadding + bottomPadding
+                visible: fullRoot.currentTab !== "about"
+                         && Plasmoid.configuration.configWriteError !== ""
+                type: Kirigami.MessageType.Error
+                text: i18n("Could not save the provider selection to CodexBar's config.json: %1",
+                           Plasmoid.configuration.configWriteError)
+                actions: Kirigami.Action {
+                    text: i18n("Dismiss")
+                    icon.name: "dialog-close"
+                    onTriggered: Plasmoid.configuration.configWriteError = ""
+                }
+            }
+
             CliSetupCard {
                 visible: fullRoot.currentTab !== "about"
                          && fullRoot.plasmoidRoot.cliSetupRequired

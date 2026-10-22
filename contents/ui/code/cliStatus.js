@@ -89,13 +89,18 @@ function compareVersions(left, right) {
     return 0
 }
 
+// Exit statuses of a CLI process killed by SIGILL, SIGTRAP, SIGABRT, SIGBUS,
+// SIGFPE or SIGSEGV. Swift runtime traps end in SIGILL or SIGTRAP.
+function isCrash(exitCode) {
+    return exitCode === 132 || exitCode === 133 || exitCode === 134
+        || exitCode === 135 || exitCode === 136 || exitCode === 139
+}
+
 function usageFailureCode(exitCode, parseFailed) {
     if (exitCode === 127)
         return MISSING
     if (exitCode === 124 || exitCode === 137)
         return TIMEOUT
-    if (exitCode === 139)
-        return INCOMPATIBLE
     if (parseFailed || exitCode === 0)
         return UNEXPECTED
     return UNKNOWN
@@ -107,7 +112,7 @@ function applyVersionResult(state, generation, exitCode, output) {
 
     var next = copyState(state)
 
-    if (exitCode === 139) {
+    if (isCrash(exitCode)) {
         next.code = INCOMPATIBLE
         next.reason = REASON_CRASHED
         return next
@@ -161,6 +166,10 @@ function applyVersionResult(state, generation, exitCode, output) {
 function applyUsageResult(state, generation, exitCode, hasUsage, parseFailed) {
     if (!state || generation !== state.generation)
         return state
+    // A crash while fetching one provider says nothing about the others: that
+    // provider's card shows it, and the CLI stays usable for the rest.
+    if (!hasUsage && isCrash(exitCode))
+        return state
 
     var next = copyState(state)
     if (hasUsage) {
@@ -178,8 +187,6 @@ function applyUsageResult(state, generation, exitCode, hasUsage, parseFailed) {
 
     next.usageFailure = usageFailureCode(exitCode, parseFailed)
     next.code = next.usageFailure
-    if (next.code === INCOMPATIBLE)
-        next.reason = REASON_CRASHED
     return next
 }
 

@@ -3,7 +3,9 @@ import QtQuick.Controls as QQC2
 import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 import org.kde.kcmutils as KCM
+import org.kde.plasma.plasmoid
 import "code/catalog.js" as Catalog
+import "code/configProviders.js" as ConfigProviders
 import "code/providerSources.js" as ProviderSources
 import "code/providerOverrides.js" as ProviderOverrides
 
@@ -26,6 +28,8 @@ KCM.SimpleKCM {
     property string cfg_launchCommand
     // View filter only: not a setting, so toggling it is no pending change.
     property bool showEnabledOnly: false
+    // The enabled providers the ticks on this page started from.
+    property var baseEnabled: []
 
     // Providers with at least one override, in list order (enabled or not).
     readonly property var overriddenIds: ProviderOverrides.overriddenProviders(
@@ -77,10 +81,14 @@ KCM.SimpleKCM {
         return labels
     }
 
-    function enabledList() {
-        return (cfg_enabledProviders || "").split(",")
+    function idList(value) {
+        return (value || "").split(",")
             .map(function (s) { return s.trim() })
             .filter(function (s) { return s.length > 0 })
+    }
+
+    function enabledList() {
+        return idList(cfg_enabledProviders)
     }
 
     function setEnabled(id, on) {
@@ -91,6 +99,28 @@ KCM.SimpleKCM {
         if (!on && idx >= 0)
             list.splice(idx, 1)
         cfg_enabledProviders = list.join(",")
+    }
+
+    Component.onCompleted: baseEnabled = enabledList()
+
+    // The dialog writes every cfg_ key of this page on Apply and on OK, even
+    // unchanged ones, so the page follows what the widget copies from
+    // config.json while it is open: a change made with the CLI or the app,
+    // or config.json as read back after Apply. Providers ticked or unticked
+    // here keep that state; the others take config.json's.
+    Connections {
+        target: Plasmoid.configuration
+
+        function onEnabledProvidersChanged() {
+            var current = page.idList(Plasmoid.configuration.enabledProviders)
+            page.cfg_enabledProviders = ConfigProviders.rebaseSelection(
+                page.baseEnabled, page.enabledList(), current).join(",")
+            page.baseEnabled = current
+        }
+
+        function onConfigProvidersChanged() {
+            page.cfg_configProviders = Plasmoid.configuration.configProviders
+        }
     }
 
     // Ask before dropping overrides: one provider's, or everyone's for "".
@@ -119,6 +149,16 @@ KCM.SimpleKCM {
 
     ColumnLayout {
         spacing: Kirigami.Units.smallSpacing
+
+        // Read live, not as a cfg_ key: the widget sets it after Apply while
+        // this page may still be open, and Apply must not write it back.
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: Plasmoid.configuration.configWriteError !== ""
+            type: Kirigami.MessageType.Error
+            text: i18n("Could not save the provider selection to CodexBar's config.json: %1",
+                       Plasmoid.configuration.configWriteError)
+        }
 
         QQC2.Label {
             Layout.fillWidth: true
@@ -236,22 +276,22 @@ KCM.SimpleKCM {
                 // A disabled button gets no hover events, so the wrapper's
                 // HoverHandler drives the tooltip in both states.
                 Item {
-                    implicitWidth: globeButton.implicitWidth
-                    implicitHeight: globeButton.implicitHeight
+                    implicitWidth: resetButton.implicitWidth
+                    implicitHeight: resetButton.implicitHeight
 
-                    HoverHandler { id: globeHover }
+                    HoverHandler { id: resetHover }
 
                     QQC2.ToolButton {
-                        id: globeButton
+                        id: resetButton
                         anchors.fill: parent
                         // Works for disabled providers too, whose gear is greyed out.
                         enabled: page.overriddenIds.indexOf(row.modelData) >= 0
-                        icon.name: "globe"
+                        icon.name: "edit-reset"
                         Accessible.name: i18n("Reset %1 to global defaults", page.providerName(row.modelData))
                         QQC2.ToolTip.text: enabled
                             ? i18n("Reset %1 to global defaults", page.providerName(row.modelData))
                             : i18n("%1 has no custom panel settings to reset", page.providerName(row.modelData))
-                        QQC2.ToolTip.visible: globeHover.hovered
+                        QQC2.ToolTip.visible: resetHover.hovered
                         onClicked: page.confirmReset(row.modelData)
                     }
                 }
