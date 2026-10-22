@@ -179,7 +179,7 @@ plasmoidviewer -a "$(package settings "$three" notifyQuota=true notifyStatus=tru
 settings_pid=$!
 sleep "${SMOKE_WAIT:-15}"
 # "Settings…" at the bottom of the popup opens the configuration window.
-xdotool mousemove 230 694 click 1
+xdotool mousemove 60 454 click 1
 sleep 5
 settings_window="$(xdotool search --name 'CodexBar Settings' | head -n 1)"
 if [[ -z "$settings_window" ]]; then
@@ -216,7 +216,7 @@ plasmoidviewer -a "$(package external "$three" refreshIntervalMinutes=1)" -s 560
     >"$out/settings-external.log" 2>&1 &
 external_pid=$!
 sleep "${SMOKE_WAIT:-15}"
-xdotool mousemove 230 694 click 1
+xdotool mousemove 60 454 click 1
 sleep 5
 external_window="$(xdotool search --name 'CodexBar Settings' | head -n 1)"
 if [[ -z "$external_window" ]]; then
