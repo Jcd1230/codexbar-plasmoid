@@ -126,6 +126,11 @@ const antigravityUsage = {
             window: { usedPercent: 69, windowMinutes: 10080 },
         },
         {
+            id: "antigravity-quota-summary-gemini-argon-wtu-weekly",
+            title: "Gemini weekly", // generic CLI title; the popup must rename it
+            window: { usedPercent: 10, windowMinutes: 10080 },
+        },
+        {
             id: "antigravity-quota-summary-3p-5h",
             title: "Claude/GPT 5-hour",
             window: { usedPercent: 0, windowMinutes: 300 },
@@ -142,7 +147,38 @@ const antigravityWindows = catalog.antigravityGeminiWindows(antigravityUsage)
 assert.equal(antigravityWindows.length, 2)
 assert.equal(antigravityWindows[0].id, "antigravity-quota-summary-gemini-5h")
 assert.equal(antigravityWindows[1].id, "antigravity-quota-summary-gemini-weekly")
+const popupWindows = catalog.antigravityPopupWindows(antigravityUsage)
+assert.equal(popupWindows.length, 3)
+assert.equal(popupWindows[0].title, "Gemini 5-hour")
+assert.equal(popupWindows[1].title, "Gemini weekly")
+assert.equal(popupWindows[2].id, "antigravity-quota-summary-gemini-argon-wtu-weekly")
+assert.equal(popupWindows[2].title, "Argon weekly")
+assert.equal(popupWindows[2].window.usedPercent, 10)
+// Panel aggregation remains tied to the canonical Gemini pair, not Argon.
 assert.equal(catalog.windowFor(antigravityUsage, "antigravity", 300).usedPercent, 76)
 assert.equal(catalog.windowFor(antigravityUsage, "antigravity", 10080).usedPercent, 69)
+
+// Missing, duplicated or synthetic Argon windows cannot add extra bars.
+const geminiOnly = {
+    extraRateWindows: antigravityUsage.extraRateWindows.filter(
+        (ew) => ew.id.indexOf("argon") === -1
+    )
+}
+assert.equal(catalog.antigravityPopupWindows(geminiOnly).length, 2)
+const duplicateArgon = {
+    extraRateWindows: antigravityUsage.extraRateWindows.concat(
+        antigravityUsage.extraRateWindows[2]
+    )
+}
+assert.equal(catalog.antigravityPopupWindows(duplicateArgon).length, 3)
+const syntheticArgon = {
+    extraRateWindows: antigravityUsage.extraRateWindows.map((ew) =>
+        ew.id.indexOf("argon") !== -1
+            ? { ...ew, window: { isSyntheticPlaceholder: true, windowMinutes: 10080 } }
+            : ew
+    )
+}
+assert.equal(catalog.antigravityPopupWindows(syntheticArgon).length, 2)
+assert.equal(catalog.antigravityPopupWindows({}).length, 0)
 
 console.log("Catalog tests passed")
