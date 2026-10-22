@@ -33,20 +33,19 @@ ColumnLayout {
         var out = []
         if (!usage)
             return out
-        // Antigravity mirrors quota windows into generic slots and also reports
-        // explicit Gemini/Claude-GPT windows. Use the canonical Gemini pair when
-        // present so we neither duplicate bars nor mix model families.
+        // Antigravity mirrors quotas into generic slots and reports per-model
+        // windows. Show the canonical Gemini pair plus Argon's distinct weekly
+        // limit, without duplicating Claude/GPT windows or changing panel meters.
         if (providerId === "antigravity") {
-            var geminiWindows = Catalog.antigravityGeminiWindows(usage)
-            if (geminiWindows.length > 0) {
-                for (var g = 0; g < geminiWindows.length; g++) {
-                    var gew = geminiWindows[g]
-                    var gw = gew.window
-                    var gm = Catalog.effectiveWindowMinutes(gw, providerId, "extra")
+            var popupWindows = Catalog.antigravityPopupWindows(usage)
+            if (popupWindows.length > 0) {
+                for (var g = 0; g < popupWindows.length; g++) {
+                    var displayed = popupWindows[g]
                     out.push({
-                        title: gew.title,
-                        win: gw,
-                        minutes: gm,
+                        title: displayed.title,
+                        win: displayed.window,
+                        minutes: Catalog.effectiveWindowMinutes(
+                            displayed.window, providerId, "extra"),
                         pace: null
                     })
                 }

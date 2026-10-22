@@ -230,6 +230,26 @@ function antigravityGeminiWindows(usage) {
     return out
 }
 
+// Argon has its own weekly quota, which the CLI currently titles "Gemini
+// weekly". Include exactly one correctly labeled Argon bar in the popup.
+// Keep windowFor() and the panel's Gemini-only meters unchanged.
+function antigravityPopupWindows(usage) {
+    var out = antigravityGeminiWindows(usage)
+    if (out.length === 0 || !usage || !Array.isArray(usage.extraRateWindows))
+        return out
+    for (var i = 0; i < usage.extraRateWindows.length; i++) {
+        var ew = usage.extraRateWindows[i]
+        if (!ew || ew.id !== "antigravity-quota-summary-gemini-argon-wtu-weekly")
+            continue
+        var w = usableWindow(ew.window)
+        if (w && effectiveWindowMinutes(w, "antigravity", "extra") === 10080) {
+            out.push({ id: ew.id, title: "Argon weekly", window: w })
+            break
+        }
+    }
+    return out
+}
+
 function windowFor(usage, providerId, wantedMinutes) {
     if (!usage) return null
     if (providerId === "antigravity") {
