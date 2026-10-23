@@ -1,5 +1,5 @@
 # Provider identifiers accepted by `codexbar usage --provider`, in the order
-# printed by `codexbar usage --help` of CodexBar CLI 0.72.0. Regenerate with:
+# printed by `codexbar usage --help` of CodexBar CLI 0.80.0. Regenerate with:
 #   codexbar usage --help | grep -o -- '--provider [^]]*' | head -n 1 \
 #     | sed 's/^--provider //' | tr '|' '\n' | grep -v -x -e both -e all
 codex
@@ -31,6 +31,7 @@ jetbrains
 moonshot
 amp
 t3chat
+langdock
 ollama
 synthetic
 openrouter
@@ -59,6 +60,7 @@ litellm
 bifrost
 aixy
 deepgram
+soniox
 poe
 chutes
 neuralwatt
@@ -71,6 +73,7 @@ zenmux
 aiand
 zoommate
 xai
+xapi
 notion
 ibmbob
 nous
@@ -84,6 +87,7 @@ v0
 typesafe
 hyper
 gitkraken
+futureagi
 devpass
 atlascloud
 vercel
@@ -92,3 +96,17 @@ xkiro
 museai
 lithosai
 workbuddy
+tavily
+linkup
+tinyapi
+exa
+cosmic
+aerostack
+sailresearch
+sofya
+fal
+flora
+parallel
+claudeplatform
+munito
+traecn
