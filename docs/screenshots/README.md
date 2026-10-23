@@ -35,9 +35,9 @@ below give each row the spacing of a normal 44 px panel.
 
 The expected sizes describe the current layout. Actual sizes and hashes are
 recorded in `manifest.txt`; bounds checks fail if content unexpectedly grows.
-The vertical-logo example is omitted to keep the set focused. Source-selection
-UI changes, including the proposed CLI 0.72.1 behavior, should be photographed
-only after they land in the checkout being rendered.
+The vertical-logo example is omitted to keep the set focused. The mock CLI
+reports version 0.70.0, so the source column shows the `Config: …` choices;
+with CLI 0.73.0 or newer it shows the sources stored in config.json instead.
 
 ## Gallery
 

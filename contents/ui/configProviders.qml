@@ -30,6 +30,11 @@ KCM.SimpleKCM {
     property bool showEnabledOnly: false
     // The enabled providers the ticks on this page started from.
     property var baseEnabled: []
+    // The sources the source column started from.
+    property string baseSources
+    // Read live, not as a cfg_ key: whether config.json holds the sources
+    // (CodexBar CLI 0.73.0 or newer), so the column writes them there.
+    readonly property bool storesSources: Plasmoid.configuration.configStoresSources
 
     // Providers with at least one override, in list order (enabled or not).
     readonly property var overriddenIds: ProviderOverrides.overriddenProviders(
@@ -69,12 +74,14 @@ KCM.SimpleKCM {
         return Catalog.PROVIDERS[id] === undefined && entry ? entry.name : Catalog.meta(id).name
     }
 
-    // Source choices for one provider. With config.json the first choice is
-    // the source stored there; the others override it for the widget's probes.
+    // Source choices for one provider. When config.json holds the sources,
+    // the column shows and sets the one stored there. With an older CLI the
+    // first choice is the stored source and the others override it for the
+    // widget's probes.
     function sourceModel(id) {
         var labels = page.sourceLabels.slice()
         var entry = configEntry(id)
-        if (entry) {
+        if (entry && !page.storesSources) {
             var index = ProviderSources.SOURCES.indexOf(entry.source)
             labels[0] = i18n("Config: %1", index >= 0 ? page.sourceLabels[index] : entry.source)
         }
@@ -101,13 +108,17 @@ KCM.SimpleKCM {
         cfg_enabledProviders = list.join(",")
     }
 
-    Component.onCompleted: baseEnabled = enabledList()
+    Component.onCompleted: {
+        baseEnabled = enabledList()
+        baseSources = cfg_providerSources
+    }
 
     // The dialog writes every cfg_ key of this page on Apply and on OK, even
     // unchanged ones, so the page follows what the widget copies from
     // config.json while it is open: a change made with the CLI or the app,
     // or config.json as read back after Apply. Providers ticked or unticked
-    // here keep that state; the others take config.json's.
+    // here keep that state, and so do sources changed here; the others take
+    // config.json's.
     Connections {
         target: Plasmoid.configuration
 
@@ -116,6 +127,13 @@ KCM.SimpleKCM {
             page.cfg_enabledProviders = ConfigProviders.rebaseSelection(
                 page.baseEnabled, page.enabledList(), current).join(",")
             page.baseEnabled = current
+        }
+
+        function onProviderSourcesChanged() {
+            var current = Plasmoid.configuration.providerSources
+            page.cfg_providerSources = ProviderSources.rebase(
+                page.baseSources, page.cfg_providerSources, current)
+            page.baseSources = current
         }
 
         function onConfigProvidersChanged() {
@@ -162,7 +180,9 @@ KCM.SimpleKCM {
 
         QQC2.Label {
             Layout.fillWidth: true
-            text: page.configList
+            text: page.configList && page.storesSources
+                ? i18n("Providers, whether they are enabled and their data source come from CodexBar's config.json, which the CodexBar CLI and app share; Apply writes your changes there with codexbar config enable/disable/set-source. Each enabled provider costs a probe per refresh. The gear button opens per-provider overrides for the panel settings; anything left unticked there follows the General page.")
+                : page.configList
                 ? i18n("Providers and whether they are enabled come from CodexBar's config.json, which the CodexBar CLI and app share; Apply writes your changes there with codexbar config enable/disable. Each enabled provider costs a probe per refresh. The source column shows the source stored in config.json; any other choice overrides it for this widget only (--source). The gear button opens per-provider overrides for the panel settings; anything left unticked there follows the General page.")
                 : i18n("Providers are probed with the codexbar CLI. Only enable providers you actually use — each one costs a probe per refresh. The source column picks the CodexBar data source (--source) for a provider; Auto lets the CLI decide. The gear button opens per-provider overrides for the panel settings; anything left unticked there follows the General page.")
             wrapMode: Text.WordWrap
