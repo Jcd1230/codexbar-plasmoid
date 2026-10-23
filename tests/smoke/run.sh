@@ -164,9 +164,17 @@ rm -f "$CODEXBAR_MOCK_STATE"
 plasmoidviewer -a "$(package about "$three")" -s 560x860 -f planar >"$out/popup-about.log" 2>&1 &
 about_pid=$!
 sleep "${SMOKE_WAIT:-15}"
-xdotool mousemove 248 726 click 1
+# The pointer rests outside the popup, so hover cannot change the frames.
+xdotool mousemove 559 859
+sleep 1
+import -window root "$out/popup-about.before.png"
+xdotool mousemove 72 486 click 1 mousemove 559 859
 sleep 3
 shoot popup-about 560x860
+if magick compare -metric AE "$out/popup-about.before.png" "$out/popup-about.screen.png" null: 2>/dev/null; then
+    echo "About CodexBar did not open the About page" >&2
+    failed=1
+fi
 kill "$about_pid" 2>/dev/null || true
 wait "$about_pid" 2>/dev/null || true
 
