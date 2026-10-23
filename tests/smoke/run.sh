@@ -179,7 +179,7 @@ plasmoidviewer -a "$(package settings "$three" notifyQuota=true notifyStatus=tru
 settings_pid=$!
 sleep "${SMOKE_WAIT:-15}"
 # "Settings…" at the bottom of the popup opens the configuration window.
-xdotool mousemove 230 694 click 1
+xdotool mousemove 60 454 click 1
 sleep 5
 settings_window="$(xdotool search --name 'CodexBar Settings' | head -n 1)"
 if [[ -z "$settings_window" ]]; then
@@ -193,10 +193,16 @@ else
     xdotool mousemove 63 100 click 1
     sleep 3
     import -window "$settings_window" "$out/settings-providers.png"
-    # Claude's gear button (second row) opens its override dialog.
-    xdotool mousemove 980 204 click 1
+    # Claude's gear button (second row) opens its override dialog. The
+    # seeded override adds the "Reset All…" info bar above the list, and
+    # the reset button sits right of the gear.
+    xdotool mousemove 943 250 click 1
     sleep 3
     import -window "$settings_window" "$out/settings-overrides.png"
+    if cmp -s "$out/settings-providers.png" "$out/settings-overrides.png"; then
+        echo "Claude's gear button did not open the override dialog" >&2
+        failed=1
+    fi
 fi
 xwininfo -root -tree >"$out/settings.windows.txt" 2>&1 || true
 kill "$settings_pid" 2>/dev/null || true
@@ -210,7 +216,7 @@ plasmoidviewer -a "$(package external "$three" refreshIntervalMinutes=1)" -s 560
     >"$out/settings-external.log" 2>&1 &
 external_pid=$!
 sleep "${SMOKE_WAIT:-15}"
-xdotool mousemove 230 694 click 1
+xdotool mousemove 60 454 click 1
 sleep 5
 external_window="$(xdotool search --name 'CodexBar Settings' | head -n 1)"
 if [[ -z "$external_window" ]]; then
