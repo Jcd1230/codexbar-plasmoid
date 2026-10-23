@@ -95,7 +95,7 @@ var SETTABLE_SOURCES = ["web", "cli", "oauth", "api"]
 
 // The sources config.json stores, as { id: source } without "auto" and
 // without sources the widget does not know: what the settings page mirrors
-// once config.json holds the sources (CodexBar 0.72.1).
+// once config.json holds the sources (CodexBar 0.73.0).
 function storedSources(list) {
     var out = {}
     for (var i = 0; i < (list || []).length; i++) {
@@ -258,7 +258,7 @@ function restart(state) {
 // A read finished with `list`, or null when config.json could not be read.
 // `migrated` says whether the widget's own list was moved to config.json
 // (#25), `widgetIds` is that list. `widgetSources` is the widget's own
-// { id: source } while they still have to move to config.json (CLI 0.72.1
+// { id: source } while they still have to move to config.json (CLI 0.73.0
 // or newer), else null. Returns { state, action }, by action.type:
 //   drop   a write started after this read did, so it may be outdated
 //   leave  unreadable: keep the widget's own list and probe (action.force)

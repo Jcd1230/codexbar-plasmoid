@@ -364,7 +364,7 @@ for (const lateRead of [false, true]) {
     assert.deepEqual(plain(done.action.steps), ["disable --provider claude", "enable --provider gemini"])
 }
 
-// ---- sources in config.json (`config set-source`, CodexBar 0.72.1) ----
+// ---- sources in config.json (`config set-source`, CodexBar 0.73.0) ----
 // config.json storing `sources` (by CodexBar id) and enabling `on`.
 function sourceList(sources, on = ["codex", "claude"]) {
     const ids = ["codex", "claude", "cursor", "groq"]

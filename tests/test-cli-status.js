@@ -120,9 +120,9 @@ assert.equal(cli.supportsConfigSource("0.70.1"), true)
 assert.equal(cli.supportsConfigSource("0.65.9"), false)
 assert.equal(cli.supportsConfigSource(""), false)
 
-// and stores a provider's data source from CLI 0.72.1 on (`config set-source`)
-assert.equal(cli.supportsConfigSetSource("0.72.1"), true)
+// and stores a provider's data source from CLI 0.73.0 on (`config set-source`)
 assert.equal(cli.supportsConfigSetSource("0.73.0"), true)
+assert.equal(cli.supportsConfigSetSource("0.80.0"), true)
 assert.equal(cli.supportsConfigSetSource("0.72.0"), false)
 assert.equal(cli.supportsConfigSetSource(""), false)
 

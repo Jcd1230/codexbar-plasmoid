@@ -433,7 +433,7 @@ PlasmoidItem {
     }
 
     // config.json holds the providers' data sources: the CLI can store them
-    // (0.72.1 or newer) and the widget's own sources moved there. Then the
+    // (0.73.0 or newer) and the widget's own sources moved there. Then the
     // Providers page writes them with `config set-source`, and probes pass no
     // --source.
     function storesSources() {

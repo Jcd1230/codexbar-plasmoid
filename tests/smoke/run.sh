@@ -249,13 +249,13 @@ fi
 kill "$external_pid" 2>/dev/null || true
 wait "$external_pid" 2>/dev/null || true
 
-# With CLI 0.72.1 config.json holds the data sources: the widget's own
+# With CLI 0.73.0 config.json holds the data sources: the widget's own
 # --source choices move there once, for providers without a stored source
 # (Codex) while a stored one wins (Claude's OAuth), and probes pass no
 # --source. The Providers page shows the stored sources, and OK, which writes
 # every key of the page, leaves config.json as it is.
 rm -f "$CODEXBAR_MOCK_STATE" "$CODEXBAR_MOCK_STATE.sources" "$CODEXBAR_MOCK_STATE.calls"
-CODEXBAR_MOCK_VERSION=0.72.1 plasmoidviewer \
+CODEXBAR_MOCK_VERSION=0.73.0 plasmoidviewer \
     -a "$(package sources "$three" providerSources=claude=cli,codex=api)" -s 560x860 -f planar \
     >"$out/settings-sources.log" 2>&1 &
 sources_pid=$!
@@ -266,7 +266,7 @@ if grep -q -E ' usage .*--source' "$CODEXBAR_MOCK_STATE.calls"; then
     echo "Probes still pass --source with the sources in config.json" >&2
     failed=1
 fi
-xdotool mousemove 230 694 click 1
+xdotool mousemove 60 454 click 1
 sleep 5
 sources_window="$(xdotool search --name 'CodexBar Settings' | head -n 1)"
 if [[ -z "$sources_window" ]]; then

@@ -6,7 +6,7 @@ var MINIMUM_VERSION = "0.43.0"
 var CONFIG_SOURCE_VERSION = "0.66.0"
 // From this release on `codexbar config set-source` stores a provider's data
 // source in config.json (steipete/CodexBar#4142).
-var CONFIG_SET_SOURCE_VERSION = "0.72.1"
+var CONFIG_SET_SOURCE_VERSION = "0.73.0"
 
 var UNKNOWN = "unknown"
 var CHECKING = "checking"

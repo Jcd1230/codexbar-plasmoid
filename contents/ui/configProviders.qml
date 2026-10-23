@@ -33,7 +33,7 @@ KCM.SimpleKCM {
     // The sources the source column started from.
     property string baseSources
     // Read live, not as a cfg_ key: whether config.json holds the sources
-    // (CodexBar CLI 0.72.1 or newer), so the column writes them there.
+    // (CodexBar CLI 0.73.0 or newer), so the column writes them there.
     readonly property bool storesSources: Plasmoid.configuration.configStoresSources
 
     // Providers with at least one override, in list order (enabled or not).
